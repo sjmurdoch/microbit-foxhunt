@@ -2,8 +2,10 @@ from microbit import *
 import radio
 import music
 
+from radio_config import RADIO_GROUP
+
 radio.on()
-radio.config(group=42)
+radio.config(group=RADIO_GROUP)
 print("HOUND_START")
 
 while True:

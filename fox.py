@@ -1,14 +1,16 @@
 from microbit import *
 import radio
 import neopixel
+
+from radio_config import RADIO_GROUP
+
 np = neopixel.NeoPixel(pin0, 5)
 np.clear()
 np.show()
 
-
 # Initialize Radio
 radio.on()
-radio.config(group=42)
+radio.config(group=RADIO_GROUP)
 
 # Turn off the display so the Fox stays hidden
 display.off()

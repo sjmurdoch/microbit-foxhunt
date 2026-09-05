@@ -29,8 +29,15 @@ MICROBIT_VID, MICROBIT_PID = 0x0D28, 0x0204
 # Source file -> name on the device. main.py must come last: it is the entry
 # point, so nothing should be runnable until every dependency is in place.
 ROLES = {
-    "fox": [("fox.py", "main.py")],
-    "hound": [("hound_logic.py", "hound_logic.py"), ("hound.py", "main.py")],
+    "fox": [
+        ("radio_config.py", "radio_config.py"),
+        ("fox.py", "main.py"),
+    ],
+    "hound": [
+        ("radio_config.py", "radio_config.py"),
+        ("hound_logic.py", "hound_logic.py"),
+        ("hound.py", "main.py"),
+    ],
 }
 
 

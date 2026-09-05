@@ -20,6 +20,9 @@ The system implements an "Amateur Radio Direction Finding" (ARDF) game using two
 ### `fox.py` (the beacon)
 A short procedural script. It loops forever setting `radio.config(power=X)` and broadcasting `"Z1"`, `"Z2"`, `"Z3"`. It calls `display.off()` and clears any attached ZIP/NeoPixels on pin 0 so the fox stays hidden.
 
+### `radio_config.py` (shared settings)
+Holds `RADIO_GROUP`, the one thing the fox and the hound must agree on. Imported by both so the value cannot drift; a test asserts no device file passes a literal `group=`. Avoid group 0 (the MicroPython default, so any unconfigured board sits on it) and 42 (what most tutorials use) — both invite collisions with other kit in the room.
+
 ### `hound_logic.py` (the state machine)
 The `HoundController` class: a pure-Python state machine with no `microbit` imports, so it can be unit tested on a desktop.
 
@@ -95,7 +98,14 @@ Flashing targets depend on `check`, so code that fails its tests never reaches a
 
 `flash.py` works around this, and `make flash-*` uses it: halt the running program, delete `main.py` so the board boots idle, copy each file, **verify it by hash**, write `main.py` last, then reset and check for a traceback. If you flash by hand instead, verify the result — do not trust a silent success.
 
-The hound spans two files and **both must be on the board** (`hound_logic.py`, plus `hound.py` as `main.py`); the fox is just `fox.py` as `main.py`.
+Both roles need `radio_config.py`, which holds the shared radio group. The hound additionally needs `hound_logic.py`. `main.py` is written last in each case:
+
+| Role | Files on the board |
+|------|--------------------|
+| Fox | `radio_config.py`, `fox.py` as `main.py` |
+| Hound | `radio_config.py`, `hound_logic.py`, `hound.py` as `main.py` |
+
+**Changing the radio group means reflashing both boards.** They will not hear each other otherwise, and the symptom is silent — the hound simply never receives anything and times out.
 
 ### DAPLink auto-reset
 

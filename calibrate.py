@@ -18,6 +18,8 @@ import time
 import serial
 import serial.tools.list_ports
 
+from radio_config import RADIO_GROUP
+
 BAUD = 115200
 RECEIVER_FLOOR = -95      # nRF52833 bottoms out near -96 dBm
 BAR_COUNT = 5
@@ -25,7 +27,7 @@ BAR_COUNT = 5
 LOGGER_SRC = '''from microbit import *
 import radio
 radio.on()
-radio.config(group=42, queue=200, length=64)
+radio.config(group=__GROUP__, queue=200, length=64)
 print("CAL_READY")
 n = 0
 while True:
@@ -35,7 +37,7 @@ while True:
         n += 1
         display.set_pixel(2, 2, 9 if (n // 5) % 2 else 4)
     sleep(2)
-'''
+'''.replace("__GROUP__", str(RADIO_GROUP))  # not %-format: the body contains %r/%d
 
 
 def find_port():

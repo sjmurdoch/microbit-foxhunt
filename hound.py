@@ -12,8 +12,8 @@ import music
 import neopixel
 
 from hound_logic import HoundController, BAR_COUNT
+from radio_config import RADIO_GROUP
 
-RADIO_GROUP = 42
 BEEP_MS = 100
 BEEP_HZ = {1: 400, 2: 800, 3: 1200}
 # The v2 speaker shares the pin0 net with the ZIP LEDs, so a tone induces

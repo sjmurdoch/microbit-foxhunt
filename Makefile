@@ -10,7 +10,7 @@
 PY     ?= uv run python
 PYTEST ?= uv run pytest
 
-DEVICE_SRC := fox.py hound.py hound_logic.py
+DEVICE_SRC := fox.py hound.py hound_logic.py radio_config.py
 HOST_SRC   := flash.py calibrate.py integration_check.py test_hound.py
 
 # Single-board targets accept PORT=; it is only required when two boards are

@@ -222,7 +222,7 @@ def test_zone_hold_outlasts_the_slowest_beep():
 
 # --- device compatibility --------------------------------------------------
 
-DEVICE_FILES = ("fox.py", "hound.py", "hound_logic.py")
+DEVICE_FILES = ("fox.py", "hound.py", "hound_logic.py", "radio_config.py")
 
 
 @pytest.mark.parametrize("filename", DEVICE_FILES)
@@ -260,3 +260,33 @@ def test_hound_imports_the_tested_logic():
     source = open("hound.py").read()
     assert "from hound_logic import" in source
     assert "class HoundController" not in source
+
+
+def test_radio_group_is_not_hardcoded_in_device_code():
+    """Regression: the group was written out in both fox.py and hound.py, so
+    the two roles could silently drift onto different groups."""
+    import ast
+    for filename in DEVICE_FILES:
+        tree = ast.parse(open(filename).read())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if getattr(node.func, "attr", None) != "config":
+                continue
+            for keyword in node.keywords:
+                if keyword.arg == "group":
+                    assert not isinstance(keyword.value, ast.Constant), (
+                        "%s passes a literal radio group; import it from "
+                        "radio_config instead" % filename
+                    )
+
+
+def test_both_roles_take_the_group_from_one_place():
+    from radio_config import RADIO_GROUP
+
+    assert 1 <= RADIO_GROUP <= 255
+    # 0 is the MicroPython default and 42 the usual tutorial value; both are
+    # crowded and invite collisions with other kit nearby.
+    assert RADIO_GROUP not in (0, 42)
+    for filename in ("fox.py", "hound.py"):
+        assert "from radio_config import RADIO_GROUP" in open(filename).read()
