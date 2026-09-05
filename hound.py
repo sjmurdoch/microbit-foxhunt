@@ -4,6 +4,7 @@ import music
 import neopixel
 np = neopixel.NeoPixel(pin0, 5)
 np.clear()
+np.show()
 
 
 speaker.on()

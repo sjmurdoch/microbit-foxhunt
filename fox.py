@@ -3,6 +3,7 @@ import radio
 import neopixel
 np = neopixel.NeoPixel(pin0, 5)
 np.clear()
+np.show()
 
 
 # Initialize Radio
