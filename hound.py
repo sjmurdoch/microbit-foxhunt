@@ -106,6 +106,9 @@ while True:
         if zone_to_play == 1: music.pitch(400, 100, pin=None)
         elif zone_to_play == 2: music.pitch(800, 100, pin=None)
         elif zone_to_play == 3: music.pitch(1200, 100, pin=None)
+        np.clear()
+        np.show()
+
         
     # 5. Visuals
     bars = controller.get_display_bars()
