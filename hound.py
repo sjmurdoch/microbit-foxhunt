@@ -13,7 +13,7 @@ radio.on()
 radio.config(group=42)
 
 MIN_RSSI = -105
-MAX_RSSI = -40
+MAX_RSSI = -70
 
 class HoundController:
     def __init__(self):

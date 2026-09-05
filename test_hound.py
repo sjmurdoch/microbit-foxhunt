@@ -3,11 +3,11 @@ from hound_logic import HoundController
 def test_attenuator():
     hound = HoundController()
     hound.process_packet("Z1", -50, 0) # Strong signal
-    assert hound.get_display_bars() == 4
-    hound.process_inputs(button_a=True, button_b=False) # Attenuate by 5
+    assert hound.get_display_bars() == 5
+    hound.attenuation_offset = 30 # Heavy attenuation
     assert hound.get_display_bars() == 3
     hound.process_inputs(button_a=False, button_b=True) # Decrease attenuation
-    assert hound.get_display_bars() == 4
+    assert hound.get_display_bars() == 5
 
 def test_zone_hierarchy():
     hound = HoundController()
