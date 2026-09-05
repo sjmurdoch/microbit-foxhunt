@@ -37,7 +37,7 @@ class HoundController:
             if self.current_rssi <= MIN_RSSI:
                 self.current_rssi = rssi
             else:
-                self.current_rssi = (self.current_rssi * 0.8) + (rssi * 0.2)
+                self.current_rssi = (self.current_rssi * 0.2) + (rssi * 0.8)
                 
         if "Z3" in msg_str:
             self.highest_zone = 3
