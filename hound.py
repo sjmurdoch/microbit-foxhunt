@@ -27,7 +27,7 @@ class HoundController:
         if button_a:
             self.attenuation_offset += 5
         if button_b:
-            self.attenuation_offset -= 5
+            self.attenuation_offset = 0
             
     def process_packet(self, msg_str, rssi, now):
         self.current_rssi = rssi
