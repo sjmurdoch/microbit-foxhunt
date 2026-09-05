@@ -10,6 +10,7 @@ Keep the hound tethered to USB; carry the fox (on a battery) to each distance
 you are prompted for.
 """
 import argparse
+import os
 import re
 import statistics
 import sys
@@ -48,16 +49,30 @@ def find_port():
 
 
 def flash_logger(port):
-    import microfs
+    """Write the logger via the same hardened path as `make flash-*`.
+
+    A plain `microfs.put` can report success while leaving a different file on
+    the device -- see the comment at the top of flash.py.
+    """
+    from flash import boot_check, halt, remove_main, verified_put
+
     tmp = "_cal_logger.py"
     with open(tmp, "w") as fh:
         fh.write(LOGGER_SRC)
-    s = serial.Serial(port, BAUD, timeout=1, parity="N")
     try:
-        microfs.put(tmp, "main.py", s)
+        halt(port)
+        remove_main(port)
+        if not verified_put(port, tmp, "main.py"):
+            sys.exit("FAILED: could not write the logger reliably.")
+        if not boot_check(port):
+            sys.exit("FAILED: the logger does not start cleanly.")
     finally:
-        s.close()
-    print("Logger flashed to %s. Unplug/replug nothing; just re-run without --flash." % port)
+        if os.path.exists(tmp):
+            os.remove(tmp)
+    print("")
+    print("Logger is on %s and running." % port)
+    print("This REPLACED the hound's main.py. When you have finished")
+    print("calibrating, restore the game with:  make flash-hound")
 
 
 def sample(port, seconds):
@@ -147,6 +162,8 @@ def main():
     print("MIN_RSSI = %d      # signal at %.1f m, the far edge" % (min_rssi, furthest))
     print("MAX_RSSI = %d      # saturates at %.1f m, where the attenuator takes over" % (max_rssi, nearest))
     print("\n(ATTEN_STEP derives from these automatically: %d dB = exactly one bar.)" % step)
+    print("\nThe hound is still running the calibration logger.")
+    print("Restore the game with:  make flash-hound")
     if weakest < RECEIVER_FLOOR:
         print("\nNote: %.1f dBm at %.1f m is below the ~%d dBm receiver floor, so MIN_RSSI\n"
               "was clamped. The fox is out of reliable range at that distance."

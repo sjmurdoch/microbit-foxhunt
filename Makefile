@@ -18,7 +18,7 @@ HOST_SRC   := flash.py calibrate.py integration_check.py test_hound.py test_flas
 PORT_ARG := $(if $(PORT),--port $(PORT),)
 
 .DEFAULT_GOAL := help
-.PHONY: help build test check devices flash flash-fox flash-hound calibrate integration clean
+.PHONY: help build test check devices flash flash-fox flash-hound calibrate calibrate-logger integration clean
 
 help: ## Show this help
 	@echo "Micro:bit Fox Hunt"
@@ -58,7 +58,10 @@ flash: check ## Flash both boards; needs FOX_PORT and HOUND_PORT
 	$(PY) flash.py fox --port $(FOX_PORT)
 	$(PY) flash.py hound --port $(HOUND_PORT)
 
-calibrate: ## Field-calibrate MIN_RSSI/MAX_RSSI (run outdoors, see AGENTS.md)
+calibrate-logger: ## Put the calibration logger on the hound (do this first)
+	$(PY) calibrate.py --flash $(PORT_ARG)
+
+calibrate: ## Field-calibrate MIN_RSSI/MAX_RSSI outdoors (needs calibrate-logger first)
 	$(PY) calibrate.py $(PORT_ARG)
 
 integration: ## Radio round-trip check across two attached boards
