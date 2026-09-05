@@ -95,9 +95,9 @@ while True:
     # 4. Audio
     zone_to_play = controller.get_beep_to_play(now)
     if zone_to_play > 0:
-        if zone_to_play == 1: music.pitch(400, 100)
-        elif zone_to_play == 2: music.pitch(800, 100)
-        elif zone_to_play == 3: music.pitch(1200, 100)
+        if zone_to_play == 1: music.pitch(400, 100, pin=None)
+        elif zone_to_play == 2: music.pitch(800, 100, pin=None)
+        elif zone_to_play == 3: music.pitch(1200, 100, pin=None)
         
     # 5. Visuals
     bars = controller.get_display_bars()
