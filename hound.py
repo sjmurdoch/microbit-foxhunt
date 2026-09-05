@@ -16,8 +16,9 @@ from radio_config import RADIO_GROUP
 
 BEEP_MS = 100
 BEEP_HZ = {1: 400, 2: 800, 3: 1200}
-# The v2 speaker shares the pin0 net with the ZIP LEDs, so a tone induces
-# crosstalk on them. Clear the pixels once the tone has actually finished.
+# Audio does not reach P0 at all once pin=None is passed (see AGENTS.md gotcha
+# 3), but WS2812 pixels are bit-banged and an interrupt landing mid-show() can
+# still corrupt them. Blank them once the tone has finished, never during it.
 NP_SETTLE_MS = 20
 
 np = neopixel.NeoPixel(pin0, 5)
