@@ -6,7 +6,6 @@ np = neopixel.NeoPixel(pin0, 5)
 np.clear()
 np.show()
 
-
 speaker.on()
 set_volume(255)
 
@@ -31,11 +30,15 @@ class HoundController:
             self.attenuation_offset = 0
             
     def process_packet(self, msg_str, rssi, now):
-        if self.current_rssi <= MIN_RSSI:
-            self.current_rssi = rssi
-        else:
-            self.current_rssi = (self.current_rssi * 0.8) + (rssi * 0.2)
         self.last_packet_time = now
+        
+        # ONLY use the Z1 (Max Power) packet to determine distance!
+        if "Z1" in msg_str:
+            if self.current_rssi <= MIN_RSSI:
+                self.current_rssi = rssi
+            else:
+                self.current_rssi = (self.current_rssi * 0.8) + (rssi * 0.2)
+                
         if "Z3" in msg_str:
             self.highest_zone = 3
         elif "Z2" in msg_str:
@@ -73,6 +76,7 @@ class HoundController:
         return num_bars
 
 controller = HoundController()
+last_bars = -1
 
 while True:
     now = running_time()
@@ -80,7 +84,7 @@ while True:
     # 1. Inputs
     controller.process_inputs(button_a.was_pressed(), button_b.was_pressed())
     
-    # 2. Process ALL pending radio packets so the queue doesn't back up during beeps
+    # 2. Process ALL pending radio packets
     while True:
         packet = radio.receive_full()
         if not packet:
@@ -105,13 +109,14 @@ while True:
         
     # 5. Visuals
     bars = controller.get_display_bars()
-    # display.clear()
-    for y in range(5):
-        if 4 - y < bars:
-            for x in range(5):
-                display.set_pixel(x, y, 9)
-        else:
-            for x in range(5):
-                display.set_pixel(x, y, 0)
+    if bars != last_bars:
+        for y in range(5):
+            if 4 - y < bars:
+                for x in range(5):
+                    display.set_pixel(x, y, 9)
+            else:
+                for x in range(5):
+                    display.set_pixel(x, y, 0)
+        last_bars = bars
                 
     sleep(10)
