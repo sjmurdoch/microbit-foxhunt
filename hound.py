@@ -31,7 +31,10 @@ class HoundController:
             self.attenuation_offset = 0
             
     def process_packet(self, msg_str, rssi, now):
-        self.current_rssi = rssi
+        if self.current_rssi <= MIN_RSSI:
+            self.current_rssi = rssi
+        else:
+            self.current_rssi = (self.current_rssi * 0.8) + (rssi * 0.2)
         self.last_packet_time = now
         if "Z3" in msg_str:
             self.highest_zone = 3
