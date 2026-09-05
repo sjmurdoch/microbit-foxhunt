@@ -102,10 +102,13 @@ while True:
         
     # 5. Visuals
     bars = controller.get_display_bars()
-    display.clear()
+    # display.clear()
     for y in range(5):
         if 4 - y < bars:
             for x in range(5):
                 display.set_pixel(x, y, 9)
+        else:
+            for x in range(5):
+                display.set_pixel(x, y, 0)
                 
     sleep(10)
