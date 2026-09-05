@@ -5,113 +5,102 @@ import music
 speaker.on()
 set_volume(255)
 
-
-# Initialize Radio
 radio.on()
 radio.config(group=42)
 
-# --- State Variables ---
-attenuation_offset = 0
-last_packet_time = running_time()
-highest_zone = 0
-current_rssi = -105
-last_audio_time = running_time()
-
-# --- Display Constants ---
 MIN_RSSI = -105
 MAX_RSSI = -40
 
-def draw_bar_graph(rssi, offset):
-    # Apply attenuation. 
-    # E.g., if RSSI is -50 (strong) and we add 20 attenuation, we treat it as -70.
-    adjusted_rssi = rssi - offset
-    
-    # Calculate percentage (0.0 to 1.0)
-    percentage = (adjusted_rssi - MIN_RSSI) / (MAX_RSSI - MIN_RSSI)
-    percentage = max(0.0, min(1.0, percentage)) # Clamp between 0 and 1
-    
-    # Map to 5 rows (0 bars to 5 bars)
-    num_bars = int(percentage * 5)
-    if percentage > 0 and num_bars == 0:
-        num_bars = 1 # Always show at least 1 bar if signal is > MIN_RSSI
+class HoundController:
+    def __init__(self):
+        self.attenuation_offset = 0
+        self.last_packet_time = 0
+        self.highest_zone = 0
+        self.current_rssi = MIN_RSSI
+        self.last_audio_time = running_time()
         
-    display.clear()
-    # Draw from bottom (y=4) to top (y=0)
-    for y in range(5):
-        if 4 - y < num_bars:
-            for x in range(5):
-                display.set_pixel(x, y, 9)
+    def process_inputs(self, button_a, button_b):
+        if button_a:
+            self.attenuation_offset += 5
+        if button_b:
+            self.attenuation_offset -= 5
+            
+    def process_packet(self, msg_str, rssi, now):
+        self.current_rssi = rssi
+        self.last_packet_time = now
+        if "Z3" in msg_str:
+            self.highest_zone = 3
+        elif "Z2" in msg_str:
+            self.highest_zone = max(self.highest_zone, 2)
+        elif "Z1" in msg_str:
+            self.highest_zone = max(self.highest_zone, 1)
+            
+    def check_timeout(self, now):
+        if now - self.last_packet_time > 1000:
+            self.highest_zone = 0
+            self.current_rssi = MIN_RSSI
+            
+    def get_beep_to_play(self, now):
+        beep_interval = 0
+        if self.highest_zone == 1: beep_interval = 1000
+        elif self.highest_zone == 2: beep_interval = 500
+        elif self.highest_zone == 3: beep_interval = 200
+        
+        if beep_interval > 0 and now - self.last_audio_time > beep_interval:
+            zone_to_play = self.highest_zone
+            self.last_audio_time = now
+            self.highest_zone = 0
+            return zone_to_play
+        return 0
+        
+    def get_display_bars(self):
+        if self.current_rssi <= MIN_RSSI and self.attenuation_offset == 0:
+            return 0
+        adjusted_rssi = self.current_rssi - self.attenuation_offset
+        percentage = (adjusted_rssi - MIN_RSSI) / (MAX_RSSI - MIN_RSSI)
+        percentage = max(0.0, min(1.0, percentage))
+        num_bars = int(percentage * 5)
+        if percentage > 0 and num_bars == 0:
+            num_bars = 1
+        return num_bars
 
-def play_zone_audio(zone):
-    # Using wait=False ensures the tone plays in the background
-    # and doesn't block the loop from receiving radio packets.
-    if zone == 1:
-        music.pitch(400, 100)
-    elif zone == 2:
-        music.pitch(800, 100)
-    elif zone == 3:
-        music.pitch(1200, 100)
+controller = HoundController()
 
 while True:
     now = running_time()
     
-    # --- 1. Input Handling (Attenuator) ---
-    if button_a.was_pressed():
-        # Increase attenuation (make screen less sensitive)
-        attenuation_offset += 5
-    if button_b.was_pressed():
-        # Decrease attenuation (make screen more sensitive)
-        attenuation_offset -= 5
-        
-    # --- 2. Radio Processing ---
-    packet = radio.receive_full()
-    if packet:
+    # 1. Inputs
+    controller.process_inputs(button_a.was_pressed(), button_b.was_pressed())
+    
+    # 2. Process ALL pending radio packets so the queue doesn't back up during beeps
+    while True:
+        packet = radio.receive_full()
+        if not packet:
+            break
         msg = packet[0]
-        rssi = packet[1]
-        
         if msg:
             try:
-                # Decode byte array to string
                 msg_str = str(msg, 'utf-8')
-                
-                # Update tracking variables
-                current_rssi = rssi
-                last_packet_time = now
-                
-                # Keep track of the highest zone seen between audio beeps
-                if "Z3" in msg_str:
-                    highest_zone = 3
-                elif "Z2" in msg_str:
-                    highest_zone = max(highest_zone, 2)
-                elif "Z1" in msg_str:
-                    highest_zone = max(highest_zone, 1)
+                controller.process_packet(msg_str, packet[1], now)
             except:
                 pass
                 
-    # --- 3. Timeout Logic ---
-    if now - last_packet_time > 1000:
-        # Signal lost!
-        highest_zone = 0
-        current_rssi = MIN_RSSI
-        
-    # --- 4. Audio Generation ---
-    beep_interval = 0
-    if highest_zone == 1:
-        beep_interval = 1000 # Slow beep
-    elif highest_zone == 2:
-        beep_interval = 500  # Medium beep
-    elif highest_zone == 3:
-        beep_interval = 200  # Fast alarm
-        
-    if beep_interval > 0:
-        if now - last_audio_time > beep_interval:
-            play_zone_audio(highest_zone)
-            last_audio_time = now
-            # Reset zone tracking so we have to hear it again before the next beep
-            highest_zone = 0 
-            
-    # --- 5. Visual Update ---
-    draw_bar_graph(current_rssi, attenuation_offset)
+    # 3. Timeout
+    controller.check_timeout(now)
     
-    # Small pause to prevent the loop from overwhelming the CPU
+    # 4. Audio
+    zone_to_play = controller.get_beep_to_play(now)
+    if zone_to_play > 0:
+        if zone_to_play == 1: music.pitch(400, 100)
+        elif zone_to_play == 2: music.pitch(800, 100)
+        elif zone_to_play == 3: music.pitch(1200, 100)
+        
+    # 5. Visuals
+    bars = controller.get_display_bars()
+    display.clear()
+    for y in range(5):
+        if 4 - y < bars:
+            for x in range(5):
+                display.set_pixel(x, y, 9)
+                
     sleep(10)
