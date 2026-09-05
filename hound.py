@@ -1,7 +1,25 @@
+"""The Hound (receiver) -- hardware layer.
+
+Maps micro:bit hardware onto HoundController. All game logic lives in
+hound_logic.py so it can be unit tested; BOTH files must be flashed:
+
+    ufs put hound_logic.py
+    ufs put hound.py main.py
+"""
 from microbit import *
 import radio
 import music
 import neopixel
+
+from hound_logic import HoundController, BAR_COUNT
+
+RADIO_GROUP = 42
+BEEP_MS = 100
+BEEP_HZ = {1: 400, 2: 800, 3: 1200}
+# The v2 speaker shares the pin0 net with the ZIP LEDs, so a tone induces
+# crosstalk on them. Clear the pixels once the tone has actually finished.
+NP_SETTLE_MS = 20
+
 np = neopixel.NeoPixel(pin0, 5)
 np.clear()
 np.show()
@@ -10,116 +28,48 @@ speaker.on()
 set_volume(255)
 
 radio.on()
-radio.config(group=42)
-
-MIN_RSSI = -105
-MAX_RSSI = -70
-
-class HoundController:
-    def __init__(self):
-        self.attenuation_offset = 0
-        self.last_packet_time = 0
-        self.highest_zone = 0
-        self.current_rssi = MIN_RSSI
-        self.last_audio_time = running_time()
-        
-    def process_inputs(self, button_a, button_b):
-        if button_a:
-            self.attenuation_offset += 5
-        if button_b:
-            self.attenuation_offset = 0
-            
-    def process_packet(self, msg_str, rssi, now):
-        self.last_packet_time = now
-        
-        # ONLY use the Z1 (Max Power) packet to determine distance!
-        if "Z1" in msg_str:
-            if self.current_rssi <= MIN_RSSI:
-                self.current_rssi = rssi
-            else:
-                self.current_rssi = (self.current_rssi * 0.2) + (rssi * 0.8)
-                
-        if "Z3" in msg_str:
-            self.highest_zone = 3
-        elif "Z2" in msg_str:
-            self.highest_zone = max(self.highest_zone, 2)
-        elif "Z1" in msg_str:
-            self.highest_zone = max(self.highest_zone, 1)
-            
-    def check_timeout(self, now):
-        if now - self.last_packet_time > 1000:
-            self.highest_zone = 0
-            self.current_rssi = MIN_RSSI
-            
-    def get_beep_to_play(self, now):
-        beep_interval = 0
-        if self.highest_zone == 1: beep_interval = 1000
-        elif self.highest_zone == 2: beep_interval = 500
-        elif self.highest_zone == 3: beep_interval = 200
-        
-        if beep_interval > 0 and now - self.last_audio_time > beep_interval:
-            zone_to_play = self.highest_zone
-            self.last_audio_time = now
-            self.highest_zone = 0
-            return zone_to_play
-        return 0
-        
-    def get_display_bars(self):
-        if self.current_rssi <= MIN_RSSI and self.attenuation_offset == 0:
-            return 0
-        adjusted_rssi = self.current_rssi - self.attenuation_offset
-        percentage = (adjusted_rssi - MIN_RSSI) / (MAX_RSSI - MIN_RSSI)
-        percentage = max(0.0, min(1.0, percentage))
-        num_bars = int(percentage * 5)
-        if percentage > 0 and num_bars == 0:
-            num_bars = 1
-        return num_bars
+radio.config(group=RADIO_GROUP)
 
 controller = HoundController()
 last_bars = -1
+np_clear_due = 0
 
 while True:
     now = running_time()
-    
-    # 1. Inputs
+
     controller.process_inputs(button_a.was_pressed(), button_b.was_pressed())
-    
-    # 2. Process ALL pending radio packets
+
+    # Drain the entire hardware queue every tick so packets that arrived while
+    # a tone was sounding do not back up and go stale.
     while True:
         packet = radio.receive_full()
         if not packet:
             break
-        msg = packet[0]
-        if msg:
-            try:
-                msg_str = str(msg, 'utf-8')
-                controller.process_packet(msg_str, packet[1], now)
-            except:
-                pass
-                
-    # 3. Timeout
+        if packet[0]:
+            controller.process_packet(packet[0], packet[1], now)
+
     controller.check_timeout(now)
-    
-    # 4. Audio
-    zone_to_play = controller.get_beep_to_play(now)
-    if zone_to_play > 0:
-        if zone_to_play == 1: music.pitch(400, 100, pin=None)
-        elif zone_to_play == 2: music.pitch(800, 100, pin=None)
-        elif zone_to_play == 3: music.pitch(1200, 100, pin=None)
+
+    zone = controller.get_beep_to_play(now)
+    if zone:
+        # wait=False keeps the radio loop responsive. Blocking here measured
+        # 118 ms per beep and left the hound deaf 62% of wall-clock time.
+        music.pitch(BEEP_HZ[zone], BEEP_MS, pin=None, wait=False)
+        np_clear_due = now + BEEP_MS + NP_SETTLE_MS
+
+    if np_clear_due and running_time() >= np_clear_due:
         np.clear()
         np.show()
+        np_clear_due = 0
 
-        
-    # 5. Visuals
+    # Overwrite pixels rather than display.clear(), which strobes the
+    # multiplexed matrix.
     bars = controller.get_display_bars()
     if bars != last_bars:
-        for y in range(5):
-            if 4 - y < bars:
-                for x in range(5):
-                    display.set_pixel(x, y, 9)
-            else:
-                for x in range(5):
-                    display.set_pixel(x, y, 0)
+        for y in range(BAR_COUNT):
+            brightness = 9 if (BAR_COUNT - 1 - y) < bars else 0
+            for x in range(BAR_COUNT):
+                display.set_pixel(x, y, brightness)
         last_bars = bars
-                
+
     sleep(10)

@@ -2,3 +2,5 @@
 __pycache__/
 .pytest_cache/
 *.pyc
+.flash_verify.tmp
+_cal_logger.py

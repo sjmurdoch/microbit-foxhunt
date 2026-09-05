@@ -1,0 +1,18 @@
+[project]
+name = "foxhunt"
+version = "0.1.0"
+description = "BBC micro:bit v2 Amateur Radio Direction Finding (ARDF) fox hunt game"
+requires-python = ">=3.9"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "microfs>=1.4.5",
+    "pyserial>=3.5",
+]
+
+[tool.pytest.ini_options]
+# Only collect real unit tests. Hardware helpers (integration_check.py,
+# calibrate.py) are run by hand and must never be imported at collection time.
+testpaths = ["test_hound.py"]
+addopts = "-q"

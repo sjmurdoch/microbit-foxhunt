@@ -1,54 +1,140 @@
 # Micro:bit Fox Hunt (ARDF) System Design
 
-This document provides a comprehensive overview of the Micro:bit Fox Hunt project, outlining its high-level design, intended functionality, system architecture, and specific hardware quirks encountered during development. This is intended to serve as a guide for code review and future maintenance.
+This document describes the Micro:bit Fox Hunt project: its design, architecture, the hardware quirks discovered during development, and the radio characteristics measured on real boards. It is intended as a guide for code review and future maintenance.
 
 ## 1. High-Level Design
 
-The system implements an "Amateur Radio Direction Finding" (ARDF) game using two BBC micro:bit v2 devices communicating via the 2.4GHz radio band. 
+The system implements an "Amateur Radio Direction Finding" (ARDF) game using two BBC micro:bit v2 devices communicating over the 2.4 GHz radio band.
 
-The architecture is divided into two distinct roles:
-1. **The Fox (Transmitter)**: A hidden device that acts as a beacon. To simulate varying proximity zones without requiring the seeker to interpret raw radio data, the Fox rapidly cycles its transmission power (Max, Medium, Low). 
-2. **The Hound (Receiver)**: A portable tracking device used by the player. It provides two forms of feedback: a visual 5x5 LED bar graph indicating raw signal strength (distance/direction), and an auditory beep that increases in frequency as the player enters higher-power transmission zones.
+1. **The Fox (Transmitter)**: a hidden beacon. To create proximity zones without asking the seeker to interpret raw radio data, it cycles its transmit power (max, medium, low) once every 200 ms.
+2. **The Hound (Receiver)**: the player's tracker. It gives auditory feedback (a beep whose cadence and pitch indicate which zone the player is in) and visual feedback (a 5x5 LED bar graph of raw signal strength).
 
 ## 2. Intended Functionality
 
-The Hound provides a nuanced "hot and cold" tracking experience through the combination of auditory and visual feedback:
-
-* **Audio Zones (Coarse Tracking)**: As the player gets closer to the Fox, the Hound picks up weaker, lower-power beacons. It plays a slow beep when only the strongest beacon is heard, a medium beep for the middle beacon, and a rapid alarm when the weakest beacon is detected.
-* **Visual Bar Graph (Fine Tracking)**: The LED matrix displays the raw Signal Strength (RSSI). To ensure responsiveness, the visual display utilizes an **Exponential Moving Average (EMA)** smoothing filter (80% new data / 20% historical data) to eliminate erratic multipath radio bouncing while maintaining a <300ms reaction time to physical movement.
-* **The Attenuator**: The visual bar graph is deliberately calibrated to saturate (fill 5 bars) when the player is still several meters away from the Fox. When saturated, the player presses **Button A** to add digital attenuation, desensitizing the meter so they can continue tracking the signal peak at close range. **Button B** resets the attenuation to zero.
+* **Audio zones (coarse tracking)**: closer to the fox, the hound starts hearing the weaker, lower-power beacons. Slow beep when only the strongest beacon is heard, medium beep for the middle beacon, rapid alarm when the weakest is detected.
+* **Visual bar graph (fine tracking)**: the LED matrix displays smoothed RSSI, using an exponential moving average to suppress multipath jitter while staying responsive to movement.
+* **The attenuator**: the bar graph saturates while the player is still some way from the fox. **Button A** adds attenuation so tracking can continue at close range; **Button B** resets it to zero.
 
 ## 3. Architecture & Code Mapping
 
-The codebase is strictly decoupled to separate physical hardware interactions from the underlying state machine, enabling robust unit testing.
+### `fox.py` (the beacon)
+A short procedural script. It loops forever setting `radio.config(power=X)` and broadcasting `"Z1"`, `"Z2"`, `"Z3"`. It calls `display.off()` and clears any attached ZIP/NeoPixels on pin 0 so the fox stays hidden.
 
-### `fox.py` (The Beacon)
-A lightweight procedural script. It loops infinitely, setting `radio.config(power=X)` and broadcasting string identifiers (`"Z1"`, `"Z2"`, `"Z3"`). It explicitly clears any attached ZIP/NeoPixels on Pin 0 to remain hidden.
+### `hound_logic.py` (the state machine)
+The `HoundController` class: a pure-Python state machine with no `microbit` imports, so it can be unit tested on a desktop.
 
-### `hound_logic.py` (The State Machine)
-Contains the `HoundController` class. This is a pure-Python state machine completely decoupled from the micro:bit hardware. 
-* **Input Mapping**: Takes in button states (`process_inputs`), raw radio strings, signal strengths, and timestamps (`process_packet`). 
-* **Signal Isolation**: Explicitly isolates the `Z1` (Max Power) beacon for RSSI distance calculation to prevent the bar graph from oscillating in sync with the Fox's dropping transmit power cycle.
-* **Output Generation**: Exposes `get_beep_to_play()` and `get_display_bars()` which calculate timeouts, smoothing, and attenuation offsets.
-* **Testing**: Accompanied by `test_hound.py`, a comprehensive `pytest` suite that simulates radio packet backlogs, out-of-order zones, and timeouts deterministically.
+* **Inputs**: `process_inputs` (button states), `process_packet` (raw payload bytes, RSSI, timestamp), `check_timeout`.
+* **Signal isolation**: only the `Z1` (max power) beacon updates the distance reading. Using any other zone would make the bar graph oscillate in step with the fox's transmit-power cycle rather than with the player's movement.
+* **Zone hold**: `get_current_zone` reports the highest zone heard within `ZONE_HOLD_MS`, rather than latching a zone and clearing it after each beep. See section 6.
+* **Outputs**: `get_beep_to_play`, `get_display_bars`.
 
-### `hound.py` (The Hardware Integration)
-The main execution loop for the receiver. 
-* **Event Loop**: It instantiates the `HoundController` and maps physical hardware events (buttons, radio queue, system clock) into the state machine.
-* **Queue Draining**: Contains a critical inner `while True:` loop to drain the entire `radio.receive_full()` hardware queue on every tick. This prevents asynchronous packets from backing up when the main loop is blocked by synchronous audio playback.
-* **Hardware Output**: Drives the LED matrix by explicitly overwriting pixel brightness (avoiding `display.clear()` flicker) and triggers `music.pitch()`.
+### `hound.py` (hardware integration)
+The receiver's main loop. It imports `HoundController` from `hound_logic` — **the logic is not duplicated here, so both files must be flashed** (section 5). It maps buttons, the radio queue and the system clock onto the state machine, drains the entire `radio.receive_full()` queue every tick, plays tones asynchronously, and drives the LED matrix by overwriting pixel brightness.
 
----
+### Tests
+`test_hound.py` is the unit suite (`pytest`). `integration_check.py` and `calibrate.py` are **hardware tools, not tests** — they need boards attached and are run by hand. `pyproject.toml` restricts collection to `test_hound.py` so they can never be imported during a test run.
 
-## 4. Hardware Quirks & Gotchas
+## 4. Measured radio characteristics
 
-During development, several micro:bit hardware limitations were discovered and mitigated:
+Measured on two micro:bit v2 boards (DAPLink 0257, MicroPython 1.13). **These are indoor line-of-sight measurements. They are not a substitute for calibrating in the real playfield.**
 
-1. **MicroPython Radio Headers**: `radio.receive_full()` returns raw bytes, which includes a hidden 3-byte MicroPython header (`\x01\x00\x01`). Strict string equality (`==`) fails; the code must use the `in` operator (e.g., `if "Z1" in payload:`).
-2. **Varying Transmit Power vs RSSI**: Because the Fox cycles transmit power to create audio zones, the Hound will receive packets with artificially fluctuating RSSI values. The Hound's bar graph is programmed to *only* update its distance calculation upon receiving the `Z1` (Max Power) beacon.
-3. **Pin 0 Audio Cross-talk**: On the micro:bit v2, the built-in speaker is physically hardwired to the Pin 0 edge connector. Calling `music.pitch()` sends electrical PWM signals down Pin 0, which causes attached ZIP/NeoPixels to flash randomly. 
-    * *Mitigation 1*: Audio calls must explicitly use `pin=None` (e.g., `music.pitch(400, 100, pin=None)`).
-    * *Mitigation 2*: Because cross-talk is unavoidable at a hardware level, `np.clear()` and `np.show()` are called immediately after every beep to prevent the LEDs from staying stuck on.
-4. **NeoPixel Startup State**: ZIP LEDs often power on in a random state. `neopixel.clear()` followed by `neopixel.show()` is explicitly called on boot in both scripts to guarantee stealth.
-5. **LED Matrix Flicker**: The micro:bit LED matrix is multiplexed. Calling `display.clear()` inside a rapid loop causes the hardware to physically turn off for a microsecond, creating a harsh strobe effect. The code avoids this by explicitly overwriting pixel states (`0` or `9`).
-6. **`uflash` Firmware Downgrade**: The CLI tool `uflash` (v2.0.0) bundles the older micro:bit v1 firmware. Flashing a v2 board with `uflash` silently downgrades it to v1, disabling the built-in speaker. Code must be flashed using `microfs` (`ufs put script.py main.py`) to preserve the correct firmware.
+### Transmit power
+
+The firmware's `power_dbm_table` is `{0:-30, 1:-20, 2:-16, 3:-12, 4:-8, 5:-4, 6:0, 7:4}` dBm. The three game zones therefore sit roughly 12 dB apart, which was confirmed on air:
+
+| Zone | `power=` | dBm | RSSI at 1 cm | RSSI at 2 m | RSSI at 5 m | RSSI at 11 m |
+|------|---------|-----|--------------|-------------|-------------|--------------|
+| Z1 | 7 | +4  | −26.0 | −65.7 (100%) | −66.6 (100%) | −85.2 (80%) |
+| Z2 | 4 | −8  | −38.0 | −76.9 (100%) | −78.8 (96%)  | −92.0 (3%)  |
+| Z3 | 1 | −20 | −49.4 | −87.9 (70%)  | −90.4 (25%)  | not heard   |
+
+Percentages are packet reception rates.
+
+### Propagation is not a smooth curve indoors
+
+```
+ 2 m : -65.7 dBm
+ 5 m : -66.6 dBm    <- only 0.9 dB apart (path-loss exponent 0.22)
+11 m : -85.2 dBm    <- then an 18.6 dB cliff (exponent 5.43)
+```
+
+Indoors there is effectively **no usable distance gradient between 2 m and 5 m**, then a very steep one. Reflections channel energy over the short range before something blocks it. Consequences:
+
+* Attempts to predict RSSI from a single path-loss exponent were wrong by up to 20.7 dB. Do not calibrate this game from a model, and do not calibrate it indoors.
+* Stationary RSSI noise was 7–8 dB peak-to-peak — more than one bar's worth — so some display jitter is unavoidable.
+* Free space (exponent 2.0) predicts roughly −81 dBm at 22 m, so outdoors the signal should behave far more monotonically. Calibrate there.
+
+### Receiver floor
+
+The nRF52833 bottoms out near −96 dBm. This was visible in practice: Z2 at −92 dBm only got 3% of packets through. **`MIN_RSSI = -105` is therefore below anything the radio can receive**, so the bottom of the scale is unreachable.
+
+### Things that are *not* problems
+
+* `radio.config(power=N)` **does not reset `group`** on micro:bit v2. The firmware copies the current config and overwrites only the supplied keywords (`microbit_radio_config_t new_config = radio_config;`). Verified on air: a listener on group 0 heard nothing while the fox cycled power on group 42. The v1 firmware differs — do not carry this assumption backwards.
+* The default receive queue of 3 is sufficient. With the fox at 5 Hz and the old blocking audio, reception was still 294/294 packets, because `hound.py` drains the whole queue every tick.
+
+## 5. Flashing and tooling
+
+Everything goes through the Makefile; run `make help` for the list.
+
+```sh
+make check          # parse every source file, then run the tests
+make devices        # list attached micro:bits and their serial ports
+make flash-hound    # flash the hound (both its files)
+make flash-fox      # flash the fox
+make flash FOX_PORT=<port> HOUND_PORT=<port>    # both boards at once
+```
+
+Flashing targets depend on `check`, so code that fails its tests never reaches a board.
+
+**Use `microfs` (`ufs`), never `uflash`.** `uflash` v2.0.0 bundles micro:bit **v1** firmware and will silently downgrade a v2 board, disabling the speaker.
+
+### `ufs put` is not safe on its own
+
+`ufs put` can report success while leaving a **different file on the device**. Observed here: `main.py` written as `36b3f2c0` read back as `98c4f8ff`, and the board then failed to boot with an `IndentationError` on a file that was perfectly valid on disk. The cause is the auto-reset below — the board reboots mid-transfer and starts executing a half-written `main.py`, which disrupts the rest of the copy.
+
+`flash.py` works around this, and `make flash-*` uses it: halt the running program, delete `main.py` so the board boots idle, copy each file, **verify it by hash**, write `main.py` last, then reset and check for a traceback. If you flash by hand instead, verify the result — do not trust a silent success.
+
+The hound spans two files and **both must be on the board** (`hound_logic.py`, plus `hound.py` as `main.py`); the fox is just `fox.py` as `main.py`.
+
+### DAPLink auto-reset
+
+`DETAILS.TXT` on these boards reports `Auto Reset: 1`. **Opening or closing the USB serial port reboots the micro:bit.** Practical consequences:
+
+* A board cannot be left sitting in the REPL while another tool touches the port — it will reset and start running `main.py` again.
+* Anything typed into the REPL is lost as soon as the connection drops, so identification tricks like `display.scroll(...)` do not survive.
+* `ufs`/`microfs` operations are affected too; retry logic around raw-REPL entry is worth having in host-side scripts.
+
+### Two boards at once
+
+The `ufs` command-line tool always picks the first micro:bit it finds and cannot target a specific one. To drive two boards, open a `serial.Serial(port, 115200, timeout=1, parity="N")` yourself and pass it to `microfs.put/get/ls/execute(..., serial=...)`.
+
+## 6. Design decisions worth preserving
+
+### Zone hold, not latch-and-reset
+
+The zone is remembered for `ZONE_HOLD_MS` after its beacon was last heard. An earlier implementation latched the highest zone seen and then cleared it to zero after every beep, which made each interval a coin flip on whether a packet from the weakest beacon happened to land. Because Z3 is the weakest beacon and the first to suffer loss, this produced **tone changes on 48% of beeps while standing still at 5 m**, and 14% at 2 m. With the hold window those fall to roughly 7% and 0%.
+
+`ZONE_HOLD_MS` must never be shorter than the slowest beep interval, or the outer zone could expire before its own beep fell due and go permanently silent. It is pinned to `SIGNAL_TIMEOUT_MS` so the tone stops and the display blanks at the same moment. There is a test asserting this.
+
+A residual remains at zone boundaries: a single stray packet from a closer beacon upgrades the tone for a full hold window. This is arguably correct — the hound genuinely did hear it — and hysteresis was not added because requiring two detections would make the danger zone harder to enter.
+
+### Attenuator step is derived, not hard-coded
+
+`ATTEN_STEP = RSSI_SPAN // BAR_COUNT`, so one press of button A always moves the bar graph by exactly one row. A hard-coded 5 dB step against 7 dB bars meant **4 of 8 presses produced no visible change on real hardware**. Deriving the step keeps the guarantee if the scale is recalibrated. Attenuation is also capped so the display cannot be pressed into a permanently dead state.
+
+## 7. Hardware quirks and gotchas
+
+1. **MicroPython radio headers**: `radio.send()` prepends a 3-byte header, and `receive_full()` returns it (confirmed on air: `b'\x01\x00\x01P0'`). Strict equality fails; match with `in`. The payload is raw bytes, so match against bytes (`b"Z1" in payload`) and skip decoding entirely.
+2. **Varying transmit power vs RSSI**: because the fox cycles power, received RSSI fluctuates in step with the cycle. The hound updates its distance reading only on `Z1`.
+3. **Pin 0 audio cross-talk**: the v2 speaker is hardwired to the pin 0 edge connector, so playing a tone induces flashes on attached ZIP/NeoPixels even with `pin=None`. Mitigations: pass `pin=None`, and clear the pixels **after the tone has finished** (see gotcha 7 — with asynchronous audio, clearing immediately no longer works). Better still, move the NeoPixels off pin 0 to pin 1 or pin 2, which removes the problem at source.
+4. **NeoPixel startup state**: ZIP LEDs power on in a random state. Both scripts call `clear()` then `show()` on boot to guarantee stealth.
+5. **LED matrix flicker**: the matrix is multiplexed, and `display.clear()` inside a rapid loop strobes it. Overwrite pixel brightness (`0` or `9`) instead.
+6. **`uflash` firmware downgrade**: see section 5.
+7. **Blocking audio**: `music.pitch(f, ms, pin=None)` blocks by default. Measured at 118 ms per beep, giving a 129 ms loop period against 11.5 ms when quiet — the hound was deaf for **62% of wall-clock time** in the danger zone. Pass `wait=False`, and defer the NeoPixel clear until the tone has actually ended.
+
+## 8. Open items
+
+* **`MIN_RSSI` / `MAX_RSSI` are not field-calibrated.** The present values (−105 / −70) place the bottom of the scale below the receiver floor and saturate the display over the close half of the playfield. Correct values cannot be derived from the indoor data in section 4. Run `calibrate.py` outdoors in the real playfield; it prints the two constants directly.
+* **`EMA_ALPHA` (0.8)** was tuned for a <300 ms response before the 7–8 dB stationary noise floor was known. Revisit alongside the calibration, with outdoor data.
+* **Z3 may be too weak indoors.** At −87.9 dBm it sits near the receiver floor even at 2 m, so the danger zone never reads cleanly indoors. Outdoors it should be stronger; if not, raise the Z3 transmit power.
