@@ -1,5 +1,9 @@
 from microbit import *
 import radio
+import neopixel
+np = neopixel.NeoPixel(pin0, 5)
+np.clear()
+
 
 # Initialize Radio
 radio.on()

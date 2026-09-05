@@ -1,6 +1,10 @@
 from microbit import *
 import radio
 import music
+import neopixel
+np = neopixel.NeoPixel(pin0, 5)
+np.clear()
+
 
 speaker.on()
 set_volume(255)
