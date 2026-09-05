@@ -9,6 +9,18 @@ The system implements an "Amateur Radio Direction Finding" (ARDF) game using two
 1. **The Fox (Transmitter)**: a hidden beacon. To create proximity zones without asking the seeker to interpret raw radio data, it cycles its transmit power (max, medium, low) once every 200 ms.
 2. **The Hound (Receiver)**: the player's tracker. It gives auditory feedback (a beep whose cadence and pitch indicate which zone the player is in) and visual feedback (a 5x5 LED bar graph of raw signal strength).
 
+### Equipment and operating requirements
+
+| | |
+|---|---|
+| Fox | 1x BBC micro:bit v2 plus a battery pack |
+| Hound | 1 or more micro:bit v2, each with a battery pack |
+| Power | 2x AAA NiMH rechargeable (roughly 800–1000 mAh) per device |
+
+Hounds are passive receivers, so **any number of players can hunt the same fox** without interfering with each other or with the fox.
+
+The fox must stay dark (no LED display) and run for **at least 2 hours on one charge**. That endurance requirement has never been measured — see section 8.
+
 ## 2. Intended Functionality
 
 * **Audio zones (coarse tracking)**: closer to the fox, the hound starts hearing the weaker, lower-power beacons. Slow beep when only the strongest beacon is heard, medium beep for the middle beacon, rapid alarm when the weakest is detected.
@@ -143,8 +155,25 @@ A residual remains at zone boundaries: a single stray packet from a closer beaco
 6. **`uflash` firmware downgrade**: see section 5.
 7. **Blocking audio**: `music.pitch(f, ms, pin=None)` blocks by default. Measured at 118 ms per beep, giving a 129 ms loop period against 11.5 ms when quiet — the hound was deaf for **62% of wall-clock time** in the danger zone. Pass `wait=False`, and defer the NeoPixel clear until the tone has actually ended.
 
+8. **The antenna is omnidirectional**: the micro:bit's PCB antenna gives essentially no directional information, so the hound cannot show a bearing — only a strength. Players find the fox either by walking and watching whether the reading rises, or by **body shielding**: a human body absorbs enough 2.4 GHz to drop the signal noticeably, so turning on the spot until the reading dips means the fox is behind you. This is what PLAYER_GUIDE means by "turn your body". It also means the reading depends on how the device is held, which is part of what a field calibration has to absorb — calibrate holding the hound the way a child will.
+
 ## 8. Open items
 
 * **`MIN_RSSI` / `MAX_RSSI` are not field-calibrated.** The present values (−105 / −70) place the bottom of the scale below the receiver floor and saturate the display over the close half of the playfield. Correct values cannot be derived from the indoor data in section 4. Run `calibrate.py` outdoors in the real playfield; it prints the two constants directly.
 * **`EMA_ALPHA` (0.8)** was tuned for a <300 ms response before the 7–8 dB stationary noise floor was known. Revisit alongside the calibration, with outdoor data.
 * **Z3 may be too weak indoors.** At −87.9 dBm it sits near the receiver floor even at 2 m, so the danger zone never reads cleanly indoors. Outdoors it should be stronger; if not, raise the Z3 transmit power.
+
+### Acceptance tests not yet run
+
+Carried over from the original plan; none of these can be satisfied from a desk.
+
+* **Battery endurance.** The fox is required to run for 2 hours and has never been timed. Run it for 2.5 h on freshly charged cells and confirm it is still transmitting at the end.
+* **Outdoor zone thresholds.** Walk away from the fox in the open and record where the audio drops from zone 3 to 2, and 2 to 1. Everything measured so far is indoors, where propagation was flat from 2 m to 5 m and then fell off a cliff (section 4).
+* **Usability with a real player.** Hand the hound to a child who has not been briefed beyond "follow the sound, press A if the screen fills up" and confirm they can find the fox.
+
+## History
+
+`archive/` holds superseded working documents, kept for context rather than guidance:
+
+* `fox_hunt_plan.md` — the original design and implementation plan. Everything in it is either built, superseded by measurements in section 4, or carried into the sections above.
+* `FIX_PLAN.md` — the remediation plan for the 2026-09-05 code review and field test. All stages complete.
