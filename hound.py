@@ -2,6 +2,10 @@ from microbit import *
 import radio
 import music
 
+speaker.on()
+set_volume(255)
+
+
 # Initialize Radio
 radio.on()
 radio.config(group=42)
@@ -42,11 +46,11 @@ def play_zone_audio(zone):
     # Using wait=False ensures the tone plays in the background
     # and doesn't block the loop from receiving radio packets.
     if zone == 1:
-        music.pitch(400, 100, wait=False)
+        music.pitch(400, 100)
     elif zone == 2:
-        music.pitch(800, 100, wait=False)
+        music.pitch(800, 100)
     elif zone == 3:
-        music.pitch(1200, 100, wait=False)
+        music.pitch(1200, 100)
 
 while True:
     now = running_time()
@@ -75,11 +79,11 @@ while True:
                 last_packet_time = now
                 
                 # Keep track of the highest zone seen between audio beeps
-                if msg_str == "Z3":
+                if "Z3" in msg_str:
                     highest_zone = 3
-                elif msg_str == "Z2":
+                elif "Z2" in msg_str:
                     highest_zone = max(highest_zone, 2)
-                elif msg_str == "Z1":
+                elif "Z1" in msg_str:
                     highest_zone = max(highest_zone, 1)
             except:
                 pass
