@@ -104,6 +104,21 @@ Flashing targets depend on `check`, so code that fails its tests never reaches a
 
 **Use `microfs` (`ufs`), never `uflash`.** `uflash` v2.0.0 bundles micro:bit **v1** firmware and will silently downgrade a v2 board, disabling the speaker.
 
+### Firmware is never touched by flashing
+
+`ufs` copies Python files onto the filesystem of whatever MicroPython is already installed. Nothing in this project writes firmware, so a board keeps the runtime it arrived with. `make devices` reports it:
+
+```
+/dev/cu.usbmodem1402  micro:bit v2  MicroPython 2.1.2
+    serial 9906360200052820726e40a4da840fa7000000006e052820
+```
+
+It flags two things worth catching early: a board behind the newest release, and a board running **v1** firmware, which is the fingerprint of an accidental `uflash` (the generation is read from `os.uname().machine` — nRF51 is v1, nRF52 is v2). Note `sys.implementation` is not useful here: every micro:bit v2 release from 2.0.0 to 2.1.2 reports MicroPython core 1.13, so only `os.uname().release` identifies the build.
+
+`LATEST_MICROPYTHON` in `flash.py` is a hand-maintained constant, last checked 2026-09-06 against v2.1.2; it only drives the "newer available" hint.
+
+To update firmware, drag a `micropython-microbit-v2.X.Y.hex` onto the `MICROBIT` USB drive. **This erases the filesystem**, so update firmware first and then re-run `make flash-fox` / `make flash-hound` — doing it the other way round wipes the code and leaves a board that looks dead. Be aware an update also invalidates the radio measurements in section 4 if the radio stack changes.
+
 ### `ufs put` is not safe on its own
 
 `ufs put` can report success while leaving a **different file on the device**. Observed here: `main.py` written as `36b3f2c0` read back as `98c4f8ff`, and the board then failed to boot with an `IndentationError` on a file that was perfectly valid on disk. The cause is the auto-reset below — the board reboots mid-transfer and starts executing a half-written `main.py`, which disrupts the rest of the copy.

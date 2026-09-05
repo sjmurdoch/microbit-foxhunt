@@ -26,6 +26,11 @@ import serial.tools.list_ports
 BAUD = 115200
 MICROBIT_VID, MICROBIT_PID = 0x0D28, 0x0204
 
+# Newest micropython-microbit-v2 release at the time of writing (checked
+# 2026-09-06). Only used to point out that a board is behind; update it or
+# ignore the hint.
+LATEST_MICROPYTHON = "2.1.2"
+
 # Source file -> name on the device. main.py must come last: it is the entry
 # point, so nothing should be runnable until every dependency is in place.
 ROLES = {
@@ -60,6 +65,78 @@ def pick_port(explicit):
         lines += ["  %s  (serial %s)" % (d, s) for d, s in boards]
         sys.exit("\n".join(lines))
     return boards[0][0]
+
+
+def parse_version(text):
+    """Comparable tuple (major, minor, patch, is_release).
+
+    The trailing flag makes a pre-release sort *below* its final release, which
+    plain tuple comparison would otherwise get backwards: '2.1.0-beta.1' has
+    more components than '2.1.0' and so would compare greater.
+    """
+    core, _, prerelease = text.partition("-")
+    parts = []
+    for chunk in core.split("."):
+        digits = ""
+        for ch in chunk:
+            if not ch.isdigit():
+                break
+            digits += ch
+        parts.append(int(digits) if digits else 0)
+    parts = (parts + [0, 0, 0])[:3]
+    return tuple(parts) + (0 if prerelease else 1,)
+
+
+def board_generation(machine):
+    """v1 boards use an nRF51, v2 an nRF52. Flashing a v2 with `uflash`
+    silently downgrades it to v1 firmware and disables the speaker, so this is
+    worth surfacing."""
+    if not machine:
+        return "?"
+    if "nRF52" in machine:
+        return "v2"
+    if "nRF51" in machine:
+        return "v1"
+    return "?"
+
+
+def describe_firmware(release, machine):
+    if release is None:
+        return "firmware unknown (board busy?)"
+    generation = board_generation(machine)
+    text = "micro:bit %s  MicroPython %s" % (generation, release)
+    if generation == "v1":
+        text += "  ** v1 firmware: no speaker. Likely a uflash downgrade; reflash with a v2 hex **"
+    elif parse_version(release) < parse_version(LATEST_MICROPYTHON):
+        text += "  (%s available)" % LATEST_MICROPYTHON
+    return text
+
+
+def board_info(port):
+    """Ask a board which firmware it runs.
+
+    This briefly interrupts whatever main.py is doing. The board reboots and
+    resumes on its own afterwards.
+    """
+    def query(handle):
+        handle.write(b"\r\x03\x03")
+        time.sleep(0.2)
+        handle.reset_input_buffer()
+        out, err = microfs.execute(
+            ["import os", "_u = os.uname()", "print(_u.release)", "print(_u.machine)"],
+            handle,
+        )
+        if err:
+            raise RuntimeError(err.decode("utf-8", "replace"))
+        return out.decode("utf-8", "replace")
+
+    try:
+        lines = [l.strip() for l in _session(port, query, tries=3).splitlines() if l.strip()]
+    except Exception:  # noqa: BLE001 - a busy board should not break the listing
+        return None, None
+    release = lines[0] if lines else None
+    machine = lines[1] if len(lines) > 1 else None
+    return release, machine
 
 
 def sha(path):
@@ -170,7 +247,9 @@ def main():
             print("No micro:bit found on USB.")
             return 1
         for device, serial_number in boards:
-            print("%s  serial %s" % (device, serial_number))
+            release, machine = board_info(device)
+            print("%s  %s" % (device, describe_firmware(release, machine)))
+            print("    serial %s" % serial_number)
         return 0
 
     flash(args.role, pick_port(args.port))

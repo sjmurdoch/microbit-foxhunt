@@ -11,7 +11,7 @@ PY     ?= uv run python
 PYTEST ?= uv run pytest
 
 DEVICE_SRC := fox.py hound.py hound_logic.py radio_config.py
-HOST_SRC   := flash.py calibrate.py integration_check.py test_hound.py
+HOST_SRC   := flash.py calibrate.py integration_check.py test_hound.py test_flash.py
 
 # Single-board targets accept PORT=; it is only required when two boards are
 # attached, since flash.py autodetects a lone board.
@@ -39,7 +39,7 @@ check: ## Parse every source file, then run the tests
 test: ## Run the unit tests
 	$(PYTEST)
 
-devices: ## List attached micro:bits and their serial ports
+devices: ## List attached micro:bits, with firmware version
 	$(PY) flash.py list
 
 flash-fox: check ## Flash the fox (PORT= if two boards attached)
