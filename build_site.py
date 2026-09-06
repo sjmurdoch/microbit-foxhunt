@@ -88,7 +88,7 @@ CALIBRATION = (
 
 # Document-shaped pages that accompany the flasher. Same substitutions as
 # index.html, so every number a teacher reads comes from the code.
-TEACHING_PAGES = ("lesson-plan.html", "worksheet.html")
+TEACHING_PAGES = ("lesson-plan.html", "worksheet.html", "hunt-card.html")
 
 ROLE_LABELS = {
     "fox": "Fox",

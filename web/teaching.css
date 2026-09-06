@@ -94,3 +94,41 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; }
   .box { background: #fff; border-left: 3px solid #000; }
   th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* The hunt card. Twenty minutes, one side of A4, held in one hand while walking
+   -- so everything here is about fitting on a single page and staying legible
+   on a clipboard rather than about reading comfort at a desk. */
+body.compact { font-size: 15px; }
+body.compact h1 { font-size: 1.45rem; }
+body.compact h2 { font-size: 1.05rem; margin: 1.1rem 0 .35rem; }
+body.compact h3 { margin: 0 0 .25rem; font-size: .95rem; }
+body.compact .box { padding: .6rem .8rem; margin: .7rem 0; }
+body.compact table { margin: .5rem 0; }
+body.compact .write { height: 1.6rem; }
+
+.header-strip td { width: 25%; }
+.header-strip .write { margin-top: .2rem; }
+
+.tricks { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; margin: .6rem 0; }
+.trick {
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--accent);
+  padding: .6rem .7rem;
+  background: var(--box);
+}
+.trick p { margin: .3rem 0; font-size: .88rem; }
+
+ol.think li { margin: .5rem 0; }
+
+@media (max-width: 34rem) {
+  .tricks { grid-template-columns: 1fr; }
+}
+
+@media print {
+  body.compact { font-size: 9.5pt; }
+  body.compact h1 { font-size: 15pt; }
+  /* The whole point of this sheet is that it is one page. */
+  .tricks { grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .trick { background: #fff; border-top: 2px solid #000; }
+  body.compact .write { height: 1.35rem; }
+}

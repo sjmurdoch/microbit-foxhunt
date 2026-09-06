@@ -631,7 +631,7 @@ def test_monitor_zone_order_follows_the_manifest(tmp_path):
 # guarantee they were wrong after the next field trip, so they are substituted
 # at build time and checked here.
 
-TEACHING = ("lesson-plan.html", "worksheet.html")
+TEACHING = ("lesson-plan.html", "worksheet.html", "hunt-card.html")
 
 
 def render(name):
@@ -849,3 +849,59 @@ def test_index_explains_the_aerial_too():
     intro = page[page.index('id="intro"'):page.index('id="setup"')]
     assert "omnidirectional" in intro
     assert "Directional aerials do exist" in intro
+
+
+# --- the short-form hunt card ----------------------------------------------
+
+def test_hunt_card_is_playable_on_its_own():
+    """It is handed out for a 20-minute game with a three-minute briefing, so a
+    team holding only this card must be able to play and stay safe without a
+    teacher reading anything else out."""
+    page = render("hunt-card.html")
+    for essential in ("Slow beep", "Medium beep", "Fast alarm",
+                      "button A", "turn slowly all the way round",
+                      "Walk, do not run", "boundary", "battery wire"):
+        assert essential in page, essential
+
+
+def test_hunt_card_carries_the_learning_as_tactics():
+    """The point of this sheet is that the science is implicit. The three tricks
+    are the three learning objectives in disguise, so each must still be there
+    even though none is labelled as science."""
+    page = render("hunt-card.html")
+    assert "Walk and watch" in page and "fades the further" in page      # distance
+    assert "Turn on the spot" in page and "does not go through people" in page  # blocking
+    assert "Sunglasses" in page and "only changes the Hound" in page     # saturation
+
+
+def test_hunt_card_asks_the_reflection_questions():
+    """Learning is implicit during play, but it is surfaced at the end -- that is
+    what makes it a lesson rather than a game."""
+    page = render("hunt-card.html")
+    assert "Quick think" in page
+    assert "which way" in page
+    assert "what did pressing A actually change" in page
+
+
+def test_hunt_card_stays_short():
+    """One side of A4 is the whole design constraint. This will not catch a
+    layout that overflows, but it does catch someone quietly turning it into a
+    second full worksheet."""
+    page = render("hunt-card.html")
+    body = page[page.index("<body"):]
+    assert body.count("<h2") <= 6, "too many sections for one side of A4"
+    assert len(re.findall(r'class="write"', body)) <= 14, "too much writing for a 20-minute game"
+
+
+def test_lesson_plan_covers_the_short_version():
+    page = render("lesson-plan.html")
+    assert "If you only have 20 minutes" in page
+    assert 'href="hunt-card.html"' in page
+
+
+def test_both_pupil_sheets_are_offered_on_the_flasher():
+    page = open(os.path.join("web", "index.html")).read()
+    teaching = page[page.index('id="teaching"'):page.index('id="guide"')]
+    assert 'href="worksheet.html"' in teaching
+    assert 'href="hunt-card.html"' in teaching
+    assert "20-minute" in teaching
