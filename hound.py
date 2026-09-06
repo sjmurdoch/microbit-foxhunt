@@ -16,11 +16,11 @@ from radio_config import RADIO_GROUP
 
 BEEP_MS = 100
 BEEP_HZ = {1: 400, 2: 800, 3: 1200}
-# Audio does not reach P0 at all once pin=None is passed (see AGENTS.md gotcha
-# 3), but WS2812 pixels are bit-banged and an interrupt landing mid-show() can
-# still corrupt them. Blank them once the tone has finished, never during it.
-NP_SETTLE_MS = 20
 
+# Blank any attached ZIP LEDs once, at boot. They power on in a random state
+# (AGENTS.md gotcha 4) and nothing in the game uses them, so this is the only
+# show() the hound ever does -- deliberately before any tone can play. There
+# used to be a second clear after each beep; it is gone (AGENTS.md gotcha 8).
 np = neopixel.NeoPixel(pin0, 5)
 np.clear()
 np.show()
@@ -33,7 +33,6 @@ radio.config(group=RADIO_GROUP)
 
 controller = HoundController()
 last_bars = -1
-np_clear_due = 0
 
 while True:
     now = running_time()
@@ -56,12 +55,6 @@ while True:
         # wait=False keeps the radio loop responsive. Blocking here measured
         # 118 ms per beep and left the hound deaf 62% of wall-clock time.
         music.pitch(BEEP_HZ[zone], BEEP_MS, pin=None, wait=False)
-        np_clear_due = now + BEEP_MS + NP_SETTLE_MS
-
-    if np_clear_due and running_time() >= np_clear_due:
-        np.clear()
-        np.show()
-        np_clear_due = 0
 
     # Overwrite pixels rather than display.clear(), which strobes the
     # multiplexed matrix.
