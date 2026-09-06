@@ -952,3 +952,25 @@ def test_printed_pages_show_addresses_for_links_that_matter():
     css = open(os.path.join("web", "teaching.css")).read()
     assert 'a.showurl[href^="http"]::after' in css
     assert 'content: " (" attr(href) ")"' in css
+
+
+def test_intro_names_all_three_teaching_sheets():
+    """The introduction is where a teacher decides whether this page is for them.
+    It previously promised a lesson plan and a worksheet "further down" and did
+    not mention the hunt card at all, so the short option was invisible to anyone
+    who did not scroll past the download fallback."""
+    page = open(os.path.join("web", "index.html")).read()
+    intro = page[page.index('id="intro"'):page.index('id="setup"')]
+    for href in ("lesson-plan.html", "worksheet.html", "hunt-card.html"):
+        assert 'href="%s"' % href in intro, href
+
+
+def test_teaching_comes_before_the_download_fallback():
+    """Teaching materials are a main use of this page; the .hex download is a
+    fallback for browsers that cannot flash at all. Ordering them the other way
+    round buried the lesson materials second-to-last."""
+    page = open(os.path.join("web", "index.html")).read()
+    assert page.index('id="teaching"') < page.index('id="downloads"')
+    # The unsupported-browser banner jumps straight there, so nobody who needs
+    # the fallback has to hunt for it.
+    assert 'href="#downloads"' in page[:page.index('id="setup"')]
