@@ -1,4 +1,4 @@
-# Web flasher on GitHub Pages — plan
+# Web setup tool on GitHub Pages — plan
 
 Status: not started. Written 2026-09-06.
 
@@ -12,7 +12,7 @@ The goal is a page on GitHub Pages that flashes a fox or a hound from Chrome ove
 
 ## 2. Two pieces of software, two versions
 
-The page carries **the web flasher** (HTML/JS, changes when the site changes) and **the device code** (`fox.py`, `hound.py`, `hound_logic.py`, `radio_config.py`, changes when the game changes). They already differ here: `HEAD` is `db0b78c` (2026-09-06 15:32) while the last commit to touch a device file is `8d480db` (2026-09-06 15:19).
+The page carries **the web setup tool** (HTML/JS, changes when the site changes) and **the device code** (`fox.py`, `hound.py`, `hound_logic.py`, `radio_config.py`, changes when the game changes). They already differ here: `HEAD` is `db0b78c` (2026-09-06 15:32) while the last commit to touch a device file is `8d480db` (2026-09-06 15:19).
 
 A board flashed last month runs last month's device code however often the site has been rebuilt since. So the page shows both stamps, and — this is the point — "which version is this board running?" is answered by asking the board, never by reading the site.
 
@@ -51,7 +51,7 @@ await usb.flash(async () => image, { partial: true, progress });
 
 ### Refusing v1 boards
 
-The game is not merely untested on a micro:bit v1, it is **known broken**, for two independent reasons that no amount of care in the flasher can fix:
+The game is not merely untested on a micro:bit v1, it is **known broken**, for two independent reasons that no amount of care in the setup tool can fix:
 
 * **v1 has no speaker.** The whole coarse-tracking channel is audio, and `hound.py` calls `speaker.on()` / `set_volume()`. On v1 that needs external hardware on an edge-connector pin.
 * **`radio.config(power=N)` resets the group on v1.** AGENTS.md §4 records this under "things that are *not* problems" for v2 — the v2 firmware copies the current config and overwrites only the supplied keywords — and warns explicitly: *"The v1 firmware differs — do not carry this assumption backwards."* `fox.py` calls `radio.config(power=...)` three times every 200 ms, so on a v1 fox the group would be reset on every beacon.
@@ -66,13 +66,13 @@ The game is not merely untested on a micro:bit v1, it is **known broken**, for t
 | `9903`, `9904`, `9905`, `9906` | `V2` — proceed |
 | anything else, or an empty serial | **the `BoardId` constructor throws** — `connect()` fails with `Could not recognise the Board ID`, before any version is available |
 
-So the page needs a distinct third message for an unrecognised board: almost certainly a micro:bit newer than this build of the library knows about, and the fix is to update the flasher, not the board. A binary `getBoardVersion() !== "V2"` test would report that as "this is a v1 board", which is both wrong and unhelpful.
+So the page needs a distinct third message for an unrecognised board: almost certainly a micro:bit newer than this build of the library knows about, and the fix is to update the setup tool, not the board. A binary `getBoardVersion() !== "V2"` test would report that as "this is a v1 board", which is both wrong and unhelpful.
 
 The board attached here is `9906…` → `V2`, and `normalize()` maps every v2 ID to `0x9903` **[measured]** — which is why building the image with `microbitBoardId.V2` is correct for a 9906 board and not just for a 9903 one.
 
 Two further consequences of the mechanism:
 
-* it reads the **USB serial number burned into the DAPLink interface chip, not the running firmware**. That is the hardware's own view, so a v2 board that `uflash` downgraded to v1 firmware still reports `V2` and the flasher will repair it. This largely settles Q5 without sacrificing a board — `flash.board_generation()` asks `os.uname().machine`, which is the *firmware's* view, and the two disagree in exactly that case;
+* it reads the **USB serial number burned into the DAPLink interface chip, not the running firmware**. That is the hardware's own view, so a v2 board that `uflash` downgraded to v1 firmware still reports `V2` and the setup tool will repair it. This largely settles Q5 without sacrificing a board — `flash.board_generation()` asks `os.uname().machine`, which is the *firmware's* view, and the two disagree in exactly that case;
 * it is a **hard dependency on `device.serialNumber` being populated**. If Chrome ever blanks it for anti-fingerprinting, `connect()` fails outright with "Could not detected ID from connected board" — not a soft degradation. `daplink.js` pointedly offers `readDaplinkUniqueId` as the fingerprinting-proof alternative, which suggests the Foundation has met this. See Q6.
 
 ### The download fallback cannot check anything
@@ -85,7 +85,7 @@ Costs, which make this a decision rather than an obvious win: it bundles the v1 
 
 ### This writes firmware; `flash.py` does not
 
-`flash.py` copies `.py` files onto whatever MicroPython is already installed. The web flasher writes a full image. Consequences:
+`flash.py` copies `.py` files onto whatever MicroPython is already installed. The web setup tool writes a full image. Consequences:
 
 * it erases the filesystem — harmless, we write every file;
 * **it removes the entire `ufs put` failure class.** Section 5 of AGENTS.md exists because a board that reboots mid-transfer starts executing a half-written `main.py` and corrupts the rest of the copy, which is why `flash.py` halts the board, deletes `main.py`, verifies each file by hash and writes `main.py` last. None of that machinery is needed here: DAPLink halts the target for the whole flash and the filesystem arrives as one image. **Do not port `main.py`-last ordering or hash verification into the JS.** The `ROLES` mapping still matters (which files, and which one becomes `main.py`); its *order* does not;
@@ -181,7 +181,7 @@ That table must include **"display blank around 15 m while the audio keeps worki
 
 A hunt happens in a field. The site is a PWA whose service worker caches the shell, the hex and the device files, so a board can be reflashed at the event with no signal.
 
-The cache name is the site stamp, with `skipWaiting`/`clients.claim` and a visible "new version — reload" prompt. Getting this wrong pins organisers on a stale flasher forever, which is exactly the silent-failure class this project exists to avoid.
+The cache name is the site stamp, with `skipWaiting`/`clients.claim` and a visible "new version — reload" prompt. Getting this wrong pins organisers on a stale site forever, which is exactly the silent-failure class this project exists to avoid.
 
 ## 6. Audit against the AGENTS.md flashing gotchas
 
@@ -213,7 +213,7 @@ The cache name is the site stamp, with `skipWaiting`/`clients.claim` and a visib
 
 **Modified:** `flash.py` (add `BUNDLED_MICROPYTHON`); `Makefile` (`HOST_SRC +=`, new `site` target depending on `check`, and `site-serve`); `pyproject.toml` (`testpaths`); `.gitignore` (`site/`, `node_modules/`); `AGENTS.md` (a web-flasher section, the two-version distinction, and the new gotchas). `site/` is build output and is not committed.
 
-**Workflow** — on push to `main` plus `workflow_dispatch`, `permissions: {contents: read, pages: write, id-token: write}`, `concurrency: {group: pages, cancel-in-progress: false}`. Build job: `actions/checkout` with `fetch-depth: 0` (a shallow clone cannot find the last commit that touched a device file), `setup-uv`, `setup-node`, then `make check`, `make site`, `upload-pages-artifact` on `site/`. Deploy job: `needs: build`, `environment: github-pages`, `deploy-pages@v4`. Tests gate the deploy, mirroring the rule that flashing targets depend on `check` — the web flasher is a flashing target.
+**Workflow** — on push to `main` plus `workflow_dispatch`, `permissions: {contents: read, pages: write, id-token: write}`, `concurrency: {group: pages, cancel-in-progress: false}`. Build job: `actions/checkout` with `fetch-depth: 0` (a shallow clone cannot find the last commit that touched a device file), `setup-uv`, `setup-node`, then `make check`, `make site`, `upload-pages-artifact` on `site/`. Deploy job: `needs: build`, `environment: github-pages`, `deploy-pages@v4`. Tests gate the deploy, mirroring the rule that flashing targets depend on `check` — the web setup tool is a flashing target.
 
 **Tests (`test_site.py`)** — every role and file in `flash.ROLES` reaches the manifest with contents equal to the on-disk bytes; `render_radio_config(RADIO_GROUP)` reproduces `radio_config.py` byte-for-byte, parses with `ast`, defines `RADIO_GROUP == n`, and rejects 0, 42 and anything outside 1–255; the generated file passes the existing `test_radio_group_is_not_hardcoded_in_device_code` and no-f-strings checks; the device-code hash is unchanged across two groups; the checksum algorithm shipped in the manifest matches the one the device snippet computes, exercised against the real files; the bundled hex exists with the recorded SHA-256; `BUNDLED_MICROPYTHON` and `LATEST_MICROPYTHON` are separate names; the hound's files fit the 20,480-byte filesystem with margin.
 
@@ -267,7 +267,7 @@ Four things follow for the implementation:
 
 Run across two v2 boards (`…436111…` and `…726e40…`) and one v1 board (`9901…`).
 
-**The v1 refusal works, on a real v1 board.** Board id `9901` → `V1`, and the flasher stopped before writing anything. The v1 board's DAPLink connected over WebUSB without complaint, so the refusal path is reachable rather than masked by a `firmware-update-required` failure. Note the product strings differ cosmetically between generations — v1 reports `ARM / "BBC micro:bit CMSIS-DAP"` (uppercase, with literal quote characters in the name), v2 reports `Arm / BBC micro:bit CMSIS-DAP`. **Never match on these strings**; use the board ID.
+**The v1 refusal works, on a real v1 board.** Board id `9901` → `V1`, and the setup tool stopped before writing anything. The v1 board's DAPLink connected over WebUSB without complaint, so the refusal path is reachable rather than masked by a `firmware-update-required` failure. Note the product strings differ cosmetically between generations — v1 reports `ARM / "BBC micro:bit CMSIS-DAP"` (uppercase, with literal quote characters in the name), v2 reports `Arm / BBC micro:bit CMSIS-DAP`. **Never match on these strings**; use the board ID.
 
 **Identify: 20/20 consistent.** Q2a is fully settled, and it identified *two different roles* on boards flashed by the CLI — a fox (`main.py` digest 2507183434, two files) and a hound (82801265, three files).
 
@@ -283,7 +283,7 @@ Run across two v2 boards (`…436111…` and `…726e40…`) and one v1 board (`
 
 **A sixteen-fold spread, and it falls along a line the user can predict.** A board whose firmware already matches is effectively instant; a board arriving with anything else costs 22.7 s. So the progress bar and a "do not unplug" state are needed for the first flash of a given board, and the page can say which case it is *before* starting, because it knows the board's version by then. In a hall full of boards from a school cupboard, most will take the slow path once and the fast path forever after.
 
-**The repair is confirmed.** That 22.7 s flash took the `uflash`-ed board from MicroPython 2.0.0-beta.5 back to 2.1.2, verified afterwards by `make devices`. So the web flasher does fix a board that `uflash` has moved onto old firmware — the claim in §3 now rests on a measurement rather than a mechanism.
+**The repair is confirmed.** That 22.7 s flash took the `uflash`-ed board from MicroPython 2.0.0-beta.5 back to 2.1.2, verified afterwards by `make devices`. So the web setup tool does fix a board that `uflash` has moved onto old firmware — the claim in §3 now rests on a measurement rather than a mechanism.
 
 The image was 1,266,800 chars using 9,856 of 20,480 filesystem bytes, matching the Node measurement exactly. The group-16 `radio_config.py` rendered by substitution digested to 3318680731, identical to the repo file — the byte-for-byte property the plan's test will assert.
 
@@ -297,7 +297,7 @@ The image was 1,266,800 chars using 9,856 of 20,480 filesystem bytes, matching t
 
 **`uflash` 2.0.0 did not downgrade the board to v1 firmware.** It installed MicroPython **2.0.0-beta.5** — a genuine *v2* build (`os.uname().machine` still reports nRF52833), three releases old, which is what these boards originally shipped with per §4. Almost certainly it ships a universal hex and DAPLink selected the v2 slot.
 
-So the harm is real but different from what AGENTS.md gotcha 6 describes: **the speaker is not disabled and the board is not made into a v1**; it is silently moved onto old firmware, which §4 warns can invalidate the radio measurements, and which `make devices` correctly flagged. The gotcha needs rewriting, and `describe_firmware`'s "Likely a uflash downgrade; reflash with a v2 hex" hint is aimed at a case that may not occur with this uflash version. **This is a finding about the existing repo, not about the web flasher**, and it is worth confirming independently before editing AGENTS.md — one `uflash` run is one data point.
+So the harm is real but different from what AGENTS.md gotcha 6 describes: **the speaker is not disabled and the board is not made into a v1**; it is silently moved onto old firmware, which §4 warns can invalidate the radio measurements, and which `make devices` correctly flagged. The gotcha needs rewriting, and `describe_firmware`'s "Likely a uflash downgrade; reflash with a v2 hex" hint is aimed at a case that may not occur with this uflash version. **This is a finding about the existing repo, not about the web setup tool**, and it is worth confirming independently before editing AGENTS.md — one `uflash` run is one data point.
 
 The firmware write also emptied the filesystem (`LS []`), exactly as §5 says a firmware update does.
 
@@ -324,7 +324,7 @@ AGENTS.md §9 is blunt about what documentation is worth: almost every wrong bel
 ~~**Q7.** How long is a full flash?~~ **Answered 2026-09-06: 22.7 s full, 1.4–2.5 s partial** — see §8. The 62-byte chunk estimate was about right for the full path.
 *Still open:* what an **interrupted** flash leaves behind. Pull the cable mid-flash and confirm the board fails visibly rather than silently — the plan claims the failure mode is loud, and that is still reasoning rather than measurement. Now cheap to test, since recovery is one 23 s reflash.
 
-**Q8. Does a WebUSB-flashed hound behave identically to a `make flash-hound` one?** The web flasher installs 2.1.2; a board that arrived with something else changes runtime as a side effect, and AGENTS.md §4 warns that can invalidate the calibration.
+**Q8. Does a WebUSB-flashed hound behave identically to a `make flash-hound` one?** The web setup tool installs 2.1.2; a board that arrived with something else changes runtime as a side effect, and AGENTS.md §4 warns that can invalidate the calibration.
 *Check:* flash one board each way, run both against the same fox at a fixed distance, compare bars and zones.
 
 **Q9. Does the game work on a group other than 16?** In MicroPython the group is address matching rather than RF channel, so propagation should be unaffected — but the entire calibration was taken on 16 and the group picker is a headline feature.
@@ -346,7 +346,7 @@ So the CLI **does** fail immediately after a browser flash, but it recovers on t
 
 Consequences, smaller than feared: the page should say "if a command-line tool reports the board busy just after using this page, close the tab or simply retry", and no unplugging is required. Worth noting that `flash.py:board_info` gives up after `tries=3` and reports `firmware unknown (board busy?)`, which is exactly the confusing-but-honest message it was designed to produce — the listing is the fragile part, while `verified_put` retries six times per file.
 *Residual:* `make integration` was not run, because it needs a fox and an integration board and only one board was free. Worth repeating once the two-board field test happens.
-*If wrong:* the page must say "unplug and replug before using the command-line tools", and AGENTS.md needs the gotcha. This is a new silent failure the web flasher would introduce into existing tooling, so it matters more than its position in this list suggests.
+*If wrong:* the page must say "unplug and replug before using the command-line tools", and AGENTS.md needs the gotcha. This is a new silent failure the web setup tool would introduce into existing tooling, so it matters more than its position in this list suggests.
 
 ~~**Q12.** Does the picker label the board "LPC1768" the first time?~~ **Not observed here.** Permissions were reset and the board still presented as `BBC micro:bit CMSIS-DAP`. Either it is version- or platform-specific, or it no longer happens. **Do not put "it may say LPC1768" in the UI copy on the strength of a support page alone** — say what these boards actually showed, and revisit only if someone reports otherwise.
 
@@ -360,7 +360,7 @@ Consequences, smaller than feared: the page should say "if a command-line tool r
 
 **Q19. Correct AGENTS.md gotcha 6.** Measured once: `uflash` 2.0.0 on a v2 board installed MicroPython **2.0.0-beta.5**, a genuine v2 build, not v1 firmware — so it does not disable the speaker and does not make the board a v1. The documented gotcha, and `flash.describe_firmware`'s "Likely a uflash downgrade; reflash with a v2 hex" hint, both describe a failure that this version of `uflash` may not produce.
 *Check:* repeat on another board to confirm it was not a one-off, and check whether `uflash` ships a universal hex. Then rewrite the gotcha to the real harm — a silent move onto three-releases-old firmware, which §4 warns can invalidate the radio measurements.
-*Scope:* this is a correction to the existing repo, independent of the web flasher, and should probably land as its own commit.
+*Scope:* this is a correction to the existing repo, independent of the web setup tool, and should probably land as its own commit.
 
 ## 10. Gotchas found in research
 
@@ -391,7 +391,7 @@ Sources: the Micro:bit Foundation's developer and support sites, and the shipped
 13. Pages serves at `https://<user>.github.io/foxhunt/`, so every asset path must be relative (Q13).
 14. A shallow checkout breaks the device-code stamp; `fetch-depth: 0`.
 15. Pages cannot set custom headers. Nothing here needs any, but cache-bust by putting the stamp in asset filenames.
-16. A service worker keyed on anything but the build stamp serves a stale flasher indefinitely.
+16. A service worker keyed on anything but the build stamp serves a stale site indefinitely.
 
 ## 11. Staging
 

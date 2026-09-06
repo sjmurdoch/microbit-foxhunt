@@ -1,7 +1,7 @@
 """Tests for the web flasher's build step.
 
 Pure Python: no board, no browser, no network. Anything needing hardware is on
-the integration checklist in WEB_FLASHER_PLAN.md section 9.
+the integration checklist in WEB_SETUP_PLAN.md section 9.
 
 The interesting assertions here are the ones pinned to hardware. The digests in
 test_device_digest_matches_the_board came off a real micro:bit on 2026-09-06,
@@ -1351,3 +1351,37 @@ def test_turning_on_the_spot_has_a_concrete_speed():
     """"Slowly" means nothing to someone racing. Counting to ten does."""
     page = render("hunt-card.html")
     assert "count to ten" in page
+
+
+def test_no_user_facing_page_says_flasher():
+    """"Flasher" is an unfortunate word on a site aimed at schools and Scout
+    groups, and it also frames the whole thing as a tool when the page is about
+    the activity -- setting boards up is one part of it. Code identifiers keep
+    the word, because "flash" is the right technical verb for writing firmware;
+    this is only about what a reader sees."""
+    for name in ("index.html",) + TEACHING:
+        page = render(name) if name in TEACHING else open(
+            os.path.join("web", "index.html")).read()
+        assert "lasher" not in page, name
+
+    # Including anything the script writes onto the page. Double-quoted strings
+    # cannot span a newline in JavaScript, so excluding newlines stops the
+    # pattern running across unrelated quotes and matching plain code.
+    literal = re.compile(r'"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`')
+    for js in ("main.js", "monitor.js"):
+        source = open(os.path.join("web", "src", js)).read()
+        for a, b in literal.findall(source):
+            text = a or b
+            if "lasher" in text and not text.endswith(".js"):
+                raise AssertionError("%s shows the user: %r" % (js, text))
+
+
+def test_the_site_is_named_for_the_activity():
+    """The page is the Fox Hunt, not a utility that happens to mention one."""
+    page = open(os.path.join("web", "index.html")).read()
+    assert "<title>Micro:bit Fox Hunt</title>" in page
+    assert "Micro:bit Fox Hunt</h1>" in page
+    lead = page[page.index('class="lead"'):page.index("</header>")]
+    assert "hide-and-seek game" in lead
+    for name in TEACHING:
+        assert "&larr; Micro:bit Fox Hunt</a>" in render(name), name

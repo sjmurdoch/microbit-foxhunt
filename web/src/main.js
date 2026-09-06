@@ -110,7 +110,7 @@ function clearBoardUi(warning, kind) {
   show($("monitor-panel"), false);
   show($("result"), false);
   text($("connect"), "Connect a micro:bit");
-  // Not #result: that lives inside the "Flash it" section, which has just been
+  // Not #result: that lives inside the "Set it up" section, which has just been
   // hidden, so a message put there would never be seen.
   if (warning) banner($("next-prompt"), kind || "warn", warning);
   else show($("next-prompt"), false);
@@ -191,7 +191,7 @@ function renderBoard() {
     rows.push(["Firmware", "<span class='note'>reading\u2026</span>"]);
     rows.push(["Currently", "<span class='note'>reading\u2026</span>"]);
   } else {
-    rows.push(["Currently", "could not be read &mdash; it will still flash"]);
+    rows.push(["Currently", "could not be read &mdash; it can still be set up"]);
   }
   // A board on a different group from the one selected will be flashed onto the
   // selected group, which is usually what is wanted -- but if the user is here
@@ -202,7 +202,7 @@ function renderBoard() {
     mismatch =
       `<p class="banner warn">This board is on <strong>group ${s.group}</strong>, but you have ` +
       `<strong>group ${currentGroup()}</strong> selected above. Boards on different groups cannot ` +
-      `hear each other, and nothing on the board says so. Flashing it now will move it to ` +
+      `hear each other, and nothing on the board says so. Setting it up now will move it to ` +
       `group ${currentGroup()}.</p>`;
   }
 
@@ -246,12 +246,12 @@ async function doFlash(role) {
   show($("result"), false);
   show($("progress"), true);
   const setNote = (s) => text($("progress-text"), s);
-  setNote(`Preparing to flash the ${manifest.roles[role].label.toLowerCase()}\u2026`);
+  setNote(`Getting ready to set up the ${manifest.roles[role].label.toLowerCase()}\u2026`);
   busy("Preparing\u2026");
 
   try {
     await loadMicroPython(setNote);
-    setNote("Flashing… do not unplug the board.");
+    setNote("Writing to the board\u2026 do not unplug it.");
     const { stage, seconds, image } = await flasher.flashRole(role, group, (s, fraction) => {
       if (fraction !== undefined) {
         $("bar-fill").style.width = Math.round(fraction * 100) + "%";
@@ -274,7 +274,7 @@ async function doFlash(role) {
       // where anyone is looking after a flash finishes -- so setting up a class
       // set meant hunting for the next step fifteen times.
       banner($("result"), "ok",
-        `<strong>${label} flashed and running.</strong><br>` +
+        `<strong>${label} set up and running.</strong><br>` +
         `Write <strong>${label} &middot; group ${group}</strong> on a sticker and put it on ` +
         `this board.<br>` +
         `<span class="note">${stageLabel(stage)} in ${seconds.toFixed(1)} s; ` +
@@ -290,7 +290,7 @@ async function doFlash(role) {
       const bad = verified.rows.filter((r) => !r.ok).map((r) => r.target).join(", ");
       banner($("result"), "bad",
         `<strong>${label} started, but the files on the board are not what we wrote.</strong><br>` +
-        `Mismatched: ${escapeHtml(bad)}. Try flashing again.`);
+        `Mismatched: ${escapeHtml(bad)}. Try setting it up again.`);
     }
     renderSession();
     refreshGroup();
@@ -301,8 +301,8 @@ async function doFlash(role) {
     }
   } catch (e) {
     banner($("result"), "bad",
-      `<strong>Flashing failed.</strong> ${escapeHtml(String(e.message || e))}<br>` +
-      `<span class="note">The board may need flashing again before it will run.</span>`);
+      `<strong>Setting up this board failed.</strong> ${escapeHtml(String(e.message || e))}<br>` +
+      `<span class="note">It may need setting up again before it will run.</span>`);
   } finally {
     busy(null);
     show($("progress"), false);
@@ -339,8 +339,8 @@ async function safeSurvey() {
 }
 
 const stageLabel = (stage) =>
-  stage === "FullFlashing" ? "Full flash"
-    : stage === "PartialFlashing" ? "Quick flash"
+  stage === "FullFlashing" ? "Full write"
+    : stage === "PartialFlashing" ? "Quick update"
       : stage === "Connecting" ? "Connecting"
         : stage === "FindingDevice" ? "Finding the board"
           : "Working";
@@ -350,11 +350,11 @@ const stageLabel = (stage) =>
 async function startMonitor() {
   const group = currentGroup();
   show($("monitor-panel"), true);
-  $("monitor-out").innerHTML = "<p class='note'>Flashing the listener…</p>";
+  $("monitor-out").innerHTML = "<p class='note'>Setting this board up to listen…</p>";
   $("monitor-panel").scrollIntoView({ behavior: "smooth", block: "start" });
   try {
     await loadMicroPython();
-    busy("Flashing the listener onto this board\u2026");
+    busy("Setting this board up to listen\u2026");
     monitor = new Monitor(flasher, {
       onStart: () => { $("monitor-out").innerHTML = "<p>Listening\u2026</p>"; },
       onUpdate: (state) => renderMonitor(state),

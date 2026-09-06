@@ -179,23 +179,25 @@ The `ufs` command-line tool always picks the first micro:bit it finds and cannot
 
 Host-side scripts must not repeat that mistake. `flash.pick_port` prints both boards with their serial numbers and exits rather than guessing; every tool goes through it. Silently picking the first board is worse than failing, because opening the fox when you meant the hound looks exactly like being out of radio range, and that is a miserable thing to diagnose in a field.
 
-### The web flasher
+### The web setup tool
 
-`build_site.py` builds a browser-based flasher into `site/`, deployed to GitHub Pages by `.github/workflows/pages.yml`. It exists so that someone running a hunt -- a scout leader, a teacher -- can prepare a dozen boards without a checkout, `uv`, or `microfs`. Run it locally with `make site` and `make site-serve`; WebUSB works on `localhost` without HTTPS.
+`build_site.py` builds the Fox Hunt site into `site/`, including the browser-based board setup tool, deployed to GitHub Pages by `.github/workflows/pages.yml`. It exists so that someone running a hunt -- a scout leader, a teacher -- can prepare a dozen boards without a checkout, `uv`, or `microfs`. Run it locally with `make site` and `make site-serve`; WebUSB works on `localhost` without HTTPS.
 
-**It writes firmware. `flash.py` does not.** This is the one thing to keep in mind when comparing them. `ufs` copies files onto whatever MicroPython is already installed; the web flasher builds a complete image -- MicroPython plus the filesystem -- and DAPLink writes it as one hex. Three consequences:
+**It writes firmware. `flash.py` does not.** This is the one thing to keep in mind when comparing them. `ufs` copies files onto whatever MicroPython is already installed; the web setup tool builds a complete image -- MicroPython plus the filesystem -- and DAPLink writes it as one hex. Three consequences:
 
 * The entire `ufs put` failure class disappears. The `main.py`-last ordering and the hash verification in `flash.py` exist because a board that reboots mid-transfer corrupts the copy; an atomic image cannot do that. **Do not port that machinery into the JavaScript.** The `ROLES` mapping still matters, its ordering does not.
 * It pins the MicroPython version, so it has its own constant. `BUNDLED_MICROPYTHON` is what lands on a board; `LATEST_MICROPYTHON` means "the newest release that exists" and only drives a hint. They agree today and must be free to diverge -- section 6's rule about a constant carrying a second meaning.
 * It can move a board *off* a newer release onto ours, which is the same shape of harm as the `uflash` trap. The page reads the board's firmware first and says what it is about to do.
 
-**Two versions, and they move independently.** The flasher (HTML and JavaScript) and the device code are stamped separately, because a board flashed last month runs last month's code however often the site has been rebuilt since. The device stamp is a hash over the device files with the `RADIO_GROUP` line normalised, so it does not move when someone picks a different group -- the group is configuration, not code. Both appear in the page footer.
+**Two versions, and they move independently.** The site (HTML and JavaScript) and the device code are stamped separately, because a board flashed last month runs last month's code however often the site has been rebuilt since. The device stamp is a hash over the device files with the `RADIO_GROUP` line normalised, so it does not move when someone picks a different group -- the group is configuration, not code. Both appear in the page footer.
 
 **"Which version is this board running?" is answered by asking the board.** The page interrupts to the raw REPL and has MicroPython compute a digest over each of its own files, returning only the digests. That works on boards flashed by `make flash-*` too, and cannot drift, because nothing is written to the device to record it. The same digest therefore exists three times -- `build_site.device_digest`, `web/src/device.js`, and a MicroPython snippet held in a string literal in `web/src/serial.js`. All three are pinned by tests, the last against digests measured on real hardware.
 
 **The radio group is chosen in the browser**, so `radio_config.py` is served as a template with a `__GROUP__` placeholder -- the same idiom as `calibrate.LOGGER_SRC` -- and substituted at flash time. A test asserts that substituting the repo's own group reproduces `radio_config.py` byte for byte. Because the picker makes it easy to flash two boards onto different groups, and that failure is silent on the air, the page warns when the group changes between boards in a session.
 
-**Adding a device file is still three places.** `build_site.py` derives its manifest from `flash.ROLES`, so the web flasher does not become a fourth.
+**"Flasher" is avoided in anything a user reads.** It is an unfortunate word on a page aimed at schools and Scout groups, and the site is about the *activity* -- setting the boards up is one part of it, not the point of it. So the page is "Micro:bit Fox Hunt", buttons say "Set up as Fox", and the footer stamp is labelled "Site". Code identifiers keep it (`flasher.js`, the `Flasher` class, `flash.py`, `doFlash`), because "flash" is the correct technical verb for writing firmware and renaming them would churn code nobody reads. A test asserts the word appears in no user-facing page.
+
+**Adding a device file is still three places.** `build_site.py` derives its manifest from `flash.ROLES`, so the web setup tool does not become a fourth.
 
 **The player guide lives in the worksheet now.** `PLAYER_GUIDE.md` was folded into `web/worksheet.html` and deleted: it and the worksheet's opening sections said the same things about beeps, buttons and safety, and two copies of that would drift like any other. A child handed the worksheet has everything they need to play.
 
@@ -275,9 +277,9 @@ The same shape of bug hit the display: `BAR_COUNT` meant both "how many bars" an
 
 * **Gotcha 6 may be wrong about `uflash`.** Measured once, 2026-09-06: running `uflash` 2.0.0 against a v2 board installed MicroPython **2.0.0-beta.5** -- a genuine *v2* build (`os.uname().machine` still reported nRF52833), three releases old, which is what these boards shipped with. It did **not** install v1 firmware and did **not** disable the speaker. If that repeats on a second board, gotcha 6 and `describe_firmware`'s "Likely a uflash downgrade; reflash with a v2 hex" hint both need rewriting: the real harm is a silent move onto old firmware, which section 4 warns can invalidate the radio measurements. One data point is not enough to edit the gotcha, but it is enough to stop trusting it.
 
-### Web flasher: not yet settled
+### Web setup tool: not yet settled
 
-Everything the web flasher does was measured on hardware while it was built (see the table in section 5). What follows is what is left, roughly in the order it is worth doing. `WEB_FLASHER_PLAN.md` section 9 carries the detail and the reasoning.
+Everything the web setup tool does was measured on hardware while it was built (see the table in section 5). What follows is what is left, roughly in the order it is worth doing. `WEB_SETUP_PLAN.md` section 9 carries the detail and the reasoning.
 
 **Needs boards and a field**
 

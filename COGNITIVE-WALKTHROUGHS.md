@@ -1,6 +1,6 @@
 # Cognitive walkthroughs
 
-A record of structured usability walkthroughs of the Fox Hunt flasher, the issues each one found, and what changed as a result. Kept so that a later change can see which behaviours are deliberate.
+A record of structured usability walkthroughs of the Fox Hunt setup tool, the issues each one found, and what changed as a result. Kept so that a later change can see which behaviours are deliberate.
 
 The method is the standard one. For each step a user must take, ask four questions:
 
@@ -120,7 +120,7 @@ Six tests added, including the per-group tally exercised under node with two hun
 
 **Date** 2026-09-06 · **Persona** Ten years old, enjoys science, wants to do this properly and get it right. Has been handed a working Hound and the printed investigation worksheet. Has never met a micro:bit, a median, or the idea that an instrument can run out of range.
 
-This persona never opens the flasher. Their interface is **the printed worksheet and the device itself**, so that is what was walked. No device code was changed: every fix is to the paper.
+This persona never opens the setup tool. Their interface is **the printed worksheet and the device itself**, so that is what was walked. No device code was changed: every fix is to the paper.
 
 **Task sequence walked** read the mission → predict → measure at seven distances and plot a line graph → test blocking → test bouncing → discover saturation and use button A → write conclusions → attempt the challenge data.
 

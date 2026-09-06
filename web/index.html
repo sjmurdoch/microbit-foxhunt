@@ -3,20 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fox Hunt flasher</title>
+<title>Micro:bit Fox Hunt</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <header>
-  <h1>🦊 Fox Hunt flasher</h1>
-  <p class="lead">Puts the fox or the hound onto a BBC micro:bit&nbsp;V2, straight from this page.</p>
+  <h1>🦊 Micro:bit Fox Hunt</h1>
+  <p class="lead">
+    A hide-and-seek game played with radio. Everything you need to run one: what it is, sheets to
+    print, and a tool for setting up your micro:bits.
+  </p>
 </header>
 
 <main>
 
 <div id="unsupported" class="banner bad" hidden>
-  <strong>This browser cannot flash a micro:bit.</strong>
-  Flashing over USB needs Chrome or Edge on Windows, macOS, Linux or ChromeOS.
+  <strong>This browser cannot set up a micro:bit.</strong>
+  Writing to a board over USB needs Chrome or Edge on Windows, macOS, Linux or ChromeOS.
   Firefox and Safari do not support it, and neither does any browser on iPad or iPhone.
   <br>You can still use the <a href="#downloads">hex downloads</a> below and drag them onto the
   <code>MICROBIT</code> drive.
@@ -111,8 +114,8 @@
   </ol>
 
   <p>
-    <strong>This page is the setup step.</strong> It copies the game onto your boards over USB &mdash;
-    nothing to install, no account, and no programming required. Once a board is set up it needs
+    <strong>First, each board needs the game copied onto it.</strong> The three steps below do that
+    over USB &mdash; nothing to install, no account, and no programming required. Once a board is set up it needs
     only its battery. Allow about half a minute for the first board and a few seconds for each one
     after that, so a class set takes a few minutes. You need <strong>one Fox</strong>, and
     <strong>one Hound per group</strong> of children.
@@ -169,11 +172,11 @@
 </section>
 
 <section id="act" hidden>
-  <h2>3. Flash it</h2>
+  <h2>3. Set it up</h2>
   <div id="forecast" class="note"></div>
   <p class="row">
-    <button id="flash-fox" class="primary">Flash as Fox</button>
-    <button id="flash-hound" class="primary">Flash as Hound</button>
+    <button id="flash-fox" class="primary">Set up as Fox</button>
+    <button id="flash-hound" class="primary">Set up as Hound</button>
     <button id="monitor-start">Check the Fox is working&hellip;</button>
   </p>
   <p id="tally" class="note" hidden></p>
@@ -304,7 +307,7 @@
 
 <footer>
   <p>
-    Flasher <code>__SITE_SHORT__</code> &middot; <time>__SITE_DATE__</time><br>
+    Site <code>__SITE_SHORT__</code> &middot; <time>__SITE_DATE__</time><br>
     Device code <code>__DEVICE_VERSION__</code> (<code>__DEVICE_SHORT__</code> &middot; <time>__DEVICE_DATE__</time>)
   </p>
   <p id="sw-note" class="note" hidden></p>
