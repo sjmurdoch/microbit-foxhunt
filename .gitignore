@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .flash_verify.tmp
 _cal_logger.py
+site/
+node_modules/

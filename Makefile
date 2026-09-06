@@ -11,14 +11,15 @@ PY     ?= uv run python
 PYTEST ?= uv run pytest
 
 DEVICE_SRC := fox.py hound.py hound_integration.py hound_logic.py radio_config.py
-HOST_SRC   := flash.py calibrate.py integration_check.py test_hound.py test_flash.py
+HOST_SRC   := flash.py calibrate.py integration_check.py build_site.py \
+              test_hound.py test_flash.py test_site.py
 
 # Single-board targets accept PORT=; it is only required when two boards are
 # attached, since flash.py autodetects a lone board.
 PORT_ARG := $(if $(PORT),--port $(PORT),)
 
 .DEFAULT_GOAL := help
-.PHONY: help build test check devices flash flash-fox flash-hound flash-integration calibrate calibrate-logger integration clean
+.PHONY: help build test check devices flash flash-fox flash-hound flash-integration calibrate calibrate-logger integration clean site site-serve
 
 help: ## Show this help
 	@echo "Micro:bit Fox Hunt"
@@ -60,6 +61,13 @@ flash: check ## Flash both boards; needs FOX_PORT and HOUND_PORT
 	fi
 	$(PY) flash.py fox --port $(FOX_PORT)
 	$(PY) flash.py hound --port $(HOUND_PORT)
+
+site: check ## Build the web flasher into site/
+	$(PY) build_site.py
+
+site-serve: site ## Serve site/ on localhost:8000 (WebUSB works without HTTPS there)
+	@echo "http://127.0.0.1:8000/"
+	@cd site && $(PY) -m http.server 8000 --bind 127.0.0.1
 
 calibrate-logger: ## Put the calibration logger on the hound (do this first)
 	$(PY) calibrate.py --flash $(PORT_ARG)

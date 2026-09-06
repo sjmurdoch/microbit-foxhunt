@@ -1,0 +1,367 @@
+"""Build the web flasher into site/. Host tool, not a test.
+
+Normally driven by the Makefile (`make site`), which depends on `check` -- the
+web flasher is a flashing target, so code that fails its tests must not reach a
+board through it either.
+
+Two things this file exists to prevent:
+
+* **A second list of device files.** The roles, and the files in them, come from
+  `flash.ROLES` and nowhere else. AGENTS.md section 9 says a device file that is
+  not in `flash.ROLES`, `DEVICE_SRC` and `DEVICE_FILES` does not exist; deriving
+  the manifest keeps that at three places rather than four.
+* **A second copy of the radio-group substitution.** The browser has to write
+  `radio_config.py` with the group the organiser picked, so the rule for doing
+  that lives in exactly one place: this module emits `radio_config.py` with its
+  group replaced by a placeholder, and the browser does a single literal
+  `.replace()`. The same idiom as `calibrate.py`'s `__GROUP__`. A test asserts
+  that substituting the repo's own group reproduces `radio_config.py` byte for
+  byte, so the two cannot drift.
+
+The page carries two versions and they move independently -- the flasher itself,
+and the device code it writes. See WEB_FLASHER_PLAN.md section 2.
+"""
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+from flash import BUNDLED_MICROPYTHON, ROLES
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+WEB = os.path.join(HERE, "web")
+DEFAULT_OUT = os.path.join(HERE, "site")
+
+# The MicroPython image the flasher installs. Pinned deliberately: this is the
+# release the field calibration in AGENTS.md section 4 was measured on, and a
+# firmware change invalidates those numbers if the radio stack moves. It is NOT
+# flash.LATEST_MICROPYTHON, which means "the newest release that exists" and
+# only drives a hint -- see the comment there.
+MICROPYTHON_HEX = "micropython-microbit-v%s.hex" % BUNDLED_MICROPYTHON
+MICROPYTHON_SHA256 = "66fae07b71777e9e3a6b5122a27930b24cc0be5002ab9a67e92494c54a1645ef"
+MICROPYTHON_BYTES = 1239726
+
+# MicroPython's filesystem on a v2 board, measured with microbit-fs against the
+# 2.1.2 image. The hound's three files use 9856 of it. Carried into the manifest
+# so the page can refuse an over-large payload with a real number rather than
+# waiting for the hex builder to throw.
+FILESYSTEM_BYTES = 20480
+
+# Substituted into radio_config.py in place of the group. A literal token, not a
+# regex, so the browser's replace() and this module's cannot disagree.
+GROUP_PLACEHOLDER = "__GROUP__"
+
+# 0 is the MicroPython default, so any board whose radio was switched on without
+# configuring a group sits there; 42 is what most tutorials use. radio_config.py
+# explains both. The device accepts 0-255.
+GROUP_MIN, GROUP_MAX = 1, 255
+GROUP_AVOID = (0, 42)
+
+# What hound_integration.py prints. Defined here so the browser's monitor can
+# parse it without the strings being retyped in JavaScript; test_site.py asserts
+# both still appear in the device file, so renaming one fails the suite rather
+# than silently breaking the monitor.
+MONITOR_START = "HOUND_START"
+MONITOR_RX = "HOUND_RX"
+
+# Every source file that can end up on a board, taken from the roles rather than
+# listed again.
+DEVICE_FILES = sorted({src for files in ROLES.values() for src, _ in files})
+
+ROLE_LABELS = {
+    "fox": "Fox",
+    "hound": "Hound",
+    "integration": "Radio monitor",
+}
+
+
+def device_digest(data):
+    """The fingerprint the board computes over one of its own files.
+
+    Deliberately trivial arithmetic, because the other half of this function is
+    a MicroPython snippet typed into a raw REPL. Streaming a whole file back
+    over DAPLink's serial is a fight with a 512-byte ring buffer; sending a
+    digest is not. Measured against real hardware on 2026-09-06 -- the three
+    values in test_site.py came off a board, not out of this function.
+    """
+    h = 0
+    for c in bytearray(data):
+        h = (h * 31 + c) & 0xFFFFFFFF
+    return h
+
+
+def read(name):
+    with open(os.path.join(HERE, name), "rb") as fh:
+        return fh.read()
+
+
+def render_radio_config(group, template=None):
+    """radio_config.py with RADIO_GROUP set to `group`.
+
+    Pure, so it can be tested without a board or a browser. The template comes
+    from the real file, so its docstring -- including the warning about groups 0
+    and 42 -- travels to the device unchanged.
+    """
+    if not isinstance(group, int) or isinstance(group, bool):
+        raise ValueError("radio group must be an int, got %r" % (group,))
+    if not GROUP_MIN <= group <= GROUP_MAX:
+        raise ValueError(
+            "radio group %d is outside %d-%d" % (group, GROUP_MIN, GROUP_MAX))
+    if group in GROUP_AVOID:
+        raise ValueError(
+            "radio group %d invites collisions; radio_config.py explains why" % group)
+    if template is None:
+        template = radio_config_template()
+    if GROUP_PLACEHOLDER not in template:
+        raise ValueError("template has no %s to substitute" % GROUP_PLACEHOLDER)
+    return template.replace(GROUP_PLACEHOLDER, str(group))
+
+
+def radio_config_template():
+    """radio_config.py with its group replaced by the placeholder.
+
+    Rewrites the assignment rather than the number, so a group that happens to
+    appear elsewhere in the prose is left alone.
+    """
+    text = read("radio_config.py").decode("utf-8")
+    out, found = [], 0
+    for line in text.split("\n"):
+        if line.startswith("RADIO_GROUP =") and not found:
+            out.append("RADIO_GROUP = " + GROUP_PLACEHOLDER)
+            found += 1
+        else:
+            out.append(line)
+    if found != 1:
+        raise ValueError(
+            "expected exactly one 'RADIO_GROUP =' assignment in radio_config.py, found %d"
+            % found)
+    return "\n".join(out)
+
+
+def device_sources():
+    """Every device file as it will be served, with radio_config.py templated.
+
+    Keyed by the name the browser fetches. radio_config.py is the template, not
+    the repo's copy, because the group is chosen at flash time.
+    """
+    sources = {}
+    for name in DEVICE_FILES:
+        if name == "radio_config.py":
+            sources[name] = radio_config_template().encode("utf-8")
+        else:
+            sources[name] = read(name)
+    return sources
+
+
+def device_code_version(sources=None):
+    """A short hash over the device code, independent of the radio group.
+
+    The group is configuration and is reported separately -- a board is not
+    running different *code* because someone picked group 23. That is why this
+    hashes the template rather than a rendered file.
+    """
+    if sources is None:
+        sources = device_sources()
+    h = hashlib.sha256()
+    for name in sorted(sources):
+        h.update(name.encode("utf-8"))
+        h.update(b"\0")
+        h.update(sources[name])
+        h.update(b"\0")
+    return h.hexdigest()[:8]
+
+
+def git(*args):
+    """Run a git command, or fail loudly.
+
+    Never returns a placeholder on error: a build stamped 'unknown' is worse
+    than a build that stopped, because it ships and nobody notices.
+    """
+    try:
+        out = subprocess.run(
+            ("git",) + args, cwd=HERE, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except FileNotFoundError:
+        sys.exit("git is not installed; the site cannot be stamped.")
+    except subprocess.CalledProcessError as exc:
+        sys.exit("git %s failed: %s"
+                 % (" ".join(args), exc.stderr.decode("utf-8", "replace").strip()))
+    return out.stdout.decode("utf-8").strip()
+
+
+def commit_stamp(paths=()):
+    """The most recent commit, optionally restricted to some paths.
+
+    Restricting it is how the device-code stamp is found. In CI this needs the
+    full history: actions/checkout defaults to a shallow clone, where asking for
+    the last commit to touch a device file gives the wrong answer or none.
+    """
+    args = ["log", "-1", "--format=%H%n%h%n%cI"]
+    if paths:
+        args.append("--")
+        args.extend(paths)
+    out = git(*args).split("\n")
+    if len(out) != 3 or not out[0]:
+        sys.exit("git log returned no commit for %s. In CI, set fetch-depth: 0."
+                 % (list(paths) or "HEAD"))
+    return {"commit": out[0], "short": out[1], "date": out[2]}
+
+
+def build_manifest(sources=None):
+    """Everything the page needs to know that Python already knows."""
+    if sources is None:
+        sources = device_sources()
+    return {
+        "site": commit_stamp(),
+        "device": dict(commit_stamp(DEVICE_FILES), version=device_code_version(sources)),
+        "micropython": {
+            "version": BUNDLED_MICROPYTHON,
+            "file": MICROPYTHON_HEX,
+            "sha256": MICROPYTHON_SHA256,
+        },
+        "group": {
+            "default": default_group(),
+            "placeholder": GROUP_PLACEHOLDER,
+            "min": GROUP_MIN,
+            "max": GROUP_MAX,
+            "avoid": list(GROUP_AVOID),
+        },
+        "roles": {
+            role: {
+                "label": ROLE_LABELS.get(role, role),
+                "files": [list(pair) for pair in files],
+                "entry": [src for src, target in files if target == "main.py"][0],
+            }
+            for role, files in ROLES.items()
+        },
+        "monitor": {
+            "start": MONITOR_START,
+            "rx": MONITOR_RX,
+            "zones": list(monitor_zones()),
+            "listen_seconds": monitor_listen_seconds(),
+        },
+        "filesystem_bytes": FILESYSTEM_BYTES,
+    }
+
+
+def default_group():
+    from radio_config import RADIO_GROUP
+    return RADIO_GROUP
+
+
+def monitor_zones():
+    import integration_check          # inert at import; opens a port only in main()
+    return integration_check.ZONES
+
+
+def monitor_listen_seconds():
+    import integration_check
+    return integration_check.LISTEN_SECONDS
+
+
+def check_micropython():
+    """The bundled image must be the version we claim, byte for byte.
+
+    A re-cut release asset, or a truncated download, would otherwise be flashed
+    to every board the organiser touches.
+    """
+    path = os.path.join(WEB, "micropython", MICROPYTHON_HEX)
+    if not os.path.exists(path):
+        sys.exit(
+            "Missing %s.\nDownload it from\n"
+            "  https://github.com/microbit-foundation/micropython-microbit-v2"
+            "/releases/download/v%s/%s"
+            % (path, BUNDLED_MICROPYTHON, MICROPYTHON_HEX))
+    data = open(path, "rb").read()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != MICROPYTHON_SHA256:
+        sys.exit("%s has sha256 %s, expected %s" % (path, digest, MICROPYTHON_SHA256))
+    return path, data
+
+
+def bundle(out, stamp):
+    """Bundle the JavaScript with esbuild.
+
+    Fails loudly rather than quietly producing a site with no flasher in it.
+    """
+    entry = os.path.join(WEB, "src", "main.js")
+    target = os.path.join(out, "app.%s.js" % stamp)
+    npx = shutil.which("npx")
+    if npx is None:
+        sys.exit("npx not found. Install Node, then run 'npm ci'.")
+    if not os.path.isdir(os.path.join(HERE, "node_modules")):
+        sys.exit("node_modules is missing. Run 'npm ci' first.")
+    cmd = [npx, "esbuild", entry, "--bundle", "--format=iife",
+           "--outfile=" + target, "--log-level=warning"]
+    result = subprocess.run(cmd, cwd=HERE)
+    if result.returncode != 0:
+        sys.exit("esbuild failed (%d)." % result.returncode)
+    if not os.path.exists(target):
+        sys.exit("esbuild reported success but %s does not exist." % target)
+    return os.path.basename(target)
+
+
+def write(path, data):
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    with open(path, "wb") as fh:
+        fh.write(data)
+
+
+def build(out=DEFAULT_OUT, run_bundle=True):
+    sources = device_sources()
+    manifest = build_manifest(sources)
+    stamp = manifest["site"]["short"]
+
+    if os.path.isdir(out):
+        shutil.rmtree(out)
+    os.makedirs(os.path.join(out, "micropython"))
+
+    for name, data in sources.items():
+        write(os.path.join(out, name), data)
+
+    hex_path, hex_data = check_micropython()
+    write(os.path.join(out, "micropython", MICROPYTHON_HEX), hex_data)
+
+    write(os.path.join(out, "manifest.json"), json.dumps(manifest, indent=1) + "\n")
+
+    script = bundle(out, stamp) if run_bundle else "app.js"
+    page = open(os.path.join(WEB, "index.html")).read()
+    page = page.replace("__SCRIPT__", script)
+    page = page.replace("__SITE_SHORT__", manifest["site"]["short"])
+    page = page.replace("__SITE_DATE__", manifest["site"]["date"])
+    page = page.replace("__DEVICE_VERSION__", manifest["device"]["version"])
+    page = page.replace("__DEVICE_SHORT__", manifest["device"]["short"])
+    page = page.replace("__DEVICE_DATE__", manifest["device"]["date"])
+    write(os.path.join(out, "index.html"), page)
+
+    shutil.copyfile(os.path.join(WEB, "app.css"), os.path.join(out, "app.css"))
+
+    sw = open(os.path.join(WEB, "src", "sw.js")).read().replace("__STAMP__", stamp)
+    write(os.path.join(out, "sw.js"), sw)
+
+    return manifest, out
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--out", default=DEFAULT_OUT, help="output directory")
+    ap.add_argument("--no-bundle", action="store_true",
+                    help="skip esbuild (the page will not work; for checking the rest)")
+    args = ap.parse_args()
+
+    manifest, out = build(args.out, run_bundle=not args.no_bundle)
+    print("site      %s" % out)
+    print("flasher   %s  %s" % (manifest["site"]["short"], manifest["site"]["date"]))
+    print("device    %s  (%s  %s)" % (manifest["device"]["version"],
+                                      manifest["device"]["short"],
+                                      manifest["device"]["date"]))
+    print("roles     %s" % ", ".join(sorted(manifest["roles"])))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

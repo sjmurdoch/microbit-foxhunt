@@ -17,5 +17,5 @@ dev = [
 # module-level code would then run against whatever board happens to be
 # attached. Importing one inside a test is fine: they define constants at
 # import time and touch a port only from main().
-testpaths = ["test_hound.py", "test_flash.py"]
+testpaths = ["test_hound.py", "test_flash.py", "test_site.py"]
 addopts = "-q"

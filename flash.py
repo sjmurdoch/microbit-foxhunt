@@ -32,6 +32,14 @@ MICROBIT_VID, MICROBIT_PID = 0x0D28, 0x0204
 # ignore the hint.
 LATEST_MICROPYTHON = "2.1.2"
 
+# The image the web flasher installs (build_site.py). Deliberately a separate
+# constant from LATEST_MICROPYTHON even though the two agree today. That one
+# means "the newest release that exists" and only drives a hint; this one is
+# what actually lands on a board, and AGENTS.md section 4's field calibration
+# was measured on it. Section 6's rule is that a constant may not carry a second
+# meaning -- the day 2.1.3 ships, one of these moves and the other must not.
+BUNDLED_MICROPYTHON = "2.1.2"
+
 # What the board prints when it is sitting at the REPL rather than running
 # main.py. MicroPython emits the banner and prompt after main.py returns or
 # raises, so seeing either means the program is not running.
