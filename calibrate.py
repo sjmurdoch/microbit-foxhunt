@@ -25,8 +25,16 @@ BAUD = 115200
 RECEIVER_FLOOR = -95      # nRF52833 bottoms out near -96 dBm
 BAR_COUNT = 5
 
+# Blank any attached ZIP LEDs first, exactly as fox.py and hound.py do. They
+# power on in a random state (AGENTS.md gotcha 4), and a script that never
+# claims pin0 leaves them holding it: a pixel was seen lit while this logger
+# was running and dark under hound.py, which does blank the strip on boot.
 LOGGER_SRC = '''from microbit import *
 import radio
+import neopixel
+np = neopixel.NeoPixel(pin0, 5)
+np.clear()
+np.show()
 radio.on()
 radio.config(group=__GROUP__, queue=200, length=64)
 print("CAL_READY")
