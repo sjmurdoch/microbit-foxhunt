@@ -160,3 +160,56 @@ The persona's actual goal is to *find the Fox*. The 90-minute worksheet measures
 ### Verification
 
 Six tests added, two of which check the graph geometry directly — every axis label has a gridline at its own coordinate, and gridlines are evenly spaced one metre apart. Those catch a class of error that cannot be seen by reading the file.
+
+---
+
+## 4. Twelve-year-old Scout hunting against the clock
+
+**Date** 2026-09-06 · **Persona** Twelve, competitive, outdoors on a spring evening with a Hound in one hand and the hunt card in the other. Another team has already had a go and there is a time to beat. The prize for finding it is getting to hide it for the next team. Will glance at the card once before setting off and then not again unless something goes wrong — and if it does, will read it *while moving*.
+
+The interface is the hunt card and the device. This persona differs from the pupil in walkthrough 3 in one decisive way: **understanding is not the goal, speed is**, and anything that is not immediately useful gets skipped.
+
+**Task sequence walked** grab card and Hound → start hunting with no information → close in → deal with a full screen → find it → get through the questions → hide it for the next team.
+
+### Issues found
+
+**4.1 — The card said what the tricks were but not when to use them (Q3)** — *the central issue for a user in motion*
+The three tricks were presented as a numbered set to be read in order. Someone standing in a field with a beeping box does not have a numbered problem; they have a symptom. Nothing mapped "the screen is full" or "I have no idea which way" onto a trick, so the card had to be re-read and reasoned about at exactly the moment there was no time.
+*Fixed:* a one-line lookup at the top, from what is happening to what to do — no beeps → walk somewhere else; beeping but lost → trick 2; screen full → trick 3; fast alarm → look around you, not at the screen. The tricks below are unchanged and still carry the "why".
+
+**4.2 — Silence looked identical to a broken Hound (Q4)**
+Out of range the Hound is quiet and its display blank, which is precisely what a flat battery or a mis-flashed board looks like. A team that starts outside the Fox's range has no feedback at all, and the first conclusion is that the kit has failed — the exact reasoning this project's own notes warn against.
+*Fixed:* trick 1 now says "Nothing at all? Not broken — just too far. Cross to another part of the area until it starts", and the lookup strip carries the same branch.
+
+**4.3 — The card pointed at the screen right up to the point the screen stops helping (Q3)**
+Every instruction was about beeps and bars, including the last one. But a Fox two paces away is found by looking, not by measuring, and the card never said to stop. The attenuator gets you close and then the endgame is different in kind.
+*Fixed:* trick 3 ends with "Still full after two presses? It is within a couple of paces. Put the screen down and search with your eyes."
+
+**4.4 — "Turn slowly" is not an instruction to someone racing (Q1)**
+Trick 2 depends on turning slowly enough to see the reading dip. To a Scout trying to win, "slowly" is whatever they are already doing.
+*Fixed:* "turn all the way round while you count to ten" — a number they can actually follow at speed.
+
+**4.5 — The reflection stood between them and their prize (Q1)**
+"Quick think — two minutes at the end" is, to this persona, the boring bit after the interesting bit, and it competes with re-hiding the Fox. It would be skipped, which loses the only part of the card that turns a game into a lesson.
+*Fixed:* retitled "answer these three, then you can hide it". The questions are unchanged; they are now the gate to the thing this user already wants.
+
+**4.6 — Hiding it was one line of tactics with the important part missing (Q1, Q4)**
+The card treated re-hiding as an afterthought for teams who finished early, though it is this persona's actual goal, and it never mentioned the failure that ends a session for everyone: a Fox nobody can find again.
+*Fixed:* a short list — inside the boundary, not inside metal, near a wall is harder because radio bounces, and remember where you put it.
+
+### Space, and what it cost
+
+The card must stay one side of paper, and it had about 8mm of slack. The additions above cost roughly 10mm, so they were paid for rather than simply added: the mission paragraph was cut to one sentence, trick wording tightened, the re-hiding list shortened, and the footer folded onto one line. The "why" sentences in each trick — the implicit science the card exists to carry — were deliberately not touched.
+
+The one-page test caught the overflow immediately, on Letter but not A4, which is exactly the asymmetry it was written for. It failed twice during this round before the trimming was enough.
+
+### Deliberately not changed
+
+* **The three tricks and their explanations.** They are the learning, and shortening them to make room would have traded away the reason the card exists.
+* **The hunt log.** A competitive team will fill it in *because* it is a record of their time.
+* **The device.** Nothing here needed new behaviour: silence, saturation and the omnidirectional aerial are all real properties, and the fix each time was to say so on the card.
+* **The reading level.** Written for a Cub of eight as much as a Scout of twelve; nothing was made terser at the cost of being followable.
+
+### Verification
+
+Six tests added, plus the existing one-page print test at both paper sizes, which did the real work of policing the additions.

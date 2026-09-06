@@ -859,7 +859,7 @@ def test_hunt_card_is_playable_on_its_own():
     teacher reading anything else out."""
     page = render("hunt-card.html")
     for essential in ("Slow beep", "Medium beep", "Fast alarm",
-                      "button A", "turn slowly all the way round",
+                      "button A", "all the way round",
                       "Walk, do not run", "boundary", "battery wire"):
         assert essential in page, essential
 
@@ -1299,3 +1299,55 @@ def test_the_investigation_ends_with_an_actual_hunt():
     assert "Now play it for real" in page
     assert "hidden" in page
     assert "Finish by actually playing" in render("lesson-plan.html")
+
+
+# --- walkthrough 4: scout hunting against the clock ------------------------
+
+def test_hunt_card_has_a_symptom_to_action_strip():
+    """A competitive twelve-year-old reads the card once, at speed, and then
+    runs. The three tricks say what to do but not *when*, so the card carries a
+    lookup from what is happening right now to which trick to use."""
+    page = render("hunt-card.html")
+    strip = page[page.index('class="fastpath"'):page.index("</p>", page.index('class="fastpath"'))]
+    assert "no beeps" in strip
+    assert "trick 2" in strip and "trick 3" in strip
+    assert "look around you" in strip
+
+
+def test_silence_is_explained_as_normal():
+    """The Hound goes quiet and blank when it hears nothing, which is exactly
+    what a broken one would do. Without saying so, the first thing a team does
+    when out of range is conclude the kit has failed."""
+    page = render("hunt-card.html")
+    assert "Nothing at all?" in page
+    assert "Not broken" in page
+
+
+def test_the_endgame_says_to_stop_looking_at_the_screen():
+    """Every instruction on the card points at the display, right up to the
+    moment the display stops being able to help. Finding a hidden object two
+    paces away is done with your eyes."""
+    page = render("hunt-card.html")
+    assert "search with your eyes" in page
+    assert "couple of paces" in page
+
+
+def test_reflection_is_tied_to_the_reward():
+    """Re-hiding the Fox is what this persona actually wants. Putting the
+    questions between them and it gets them answered."""
+    page = render("hunt-card.html")
+    assert "then you can hide it" in page
+
+
+def test_rehiding_advice_includes_remembering_where():
+    """A Fox nobody can find again ends the session for everyone."""
+    page = render("hunt-card.html")
+    assert "Your turn to hide it" in page
+    assert "remember where you put it" in page
+    assert "inside the boundary" in page
+
+
+def test_turning_on_the_spot_has_a_concrete_speed():
+    """"Slowly" means nothing to someone racing. Counting to ten does."""
+    page = render("hunt-card.html")
+    assert "count to ten" in page

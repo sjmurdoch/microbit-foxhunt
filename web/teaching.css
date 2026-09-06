@@ -119,6 +119,9 @@ body.compact .box { padding: .6rem .8rem; margin: .7rem 0; }
 body.compact table { margin: .5rem 0; }
 body.compact .write { height: 1.6rem; }
 
+/* The decision strip: read at a glance, while walking. */
+.fastpath { font-size: .88rem; margin: .35rem 0 0; }
+
 .header-strip td { width: 25%; }
 .header-strip .write { margin-top: .2rem; }
 
@@ -146,13 +149,13 @@ ol.think li { margin: .5rem 0; }
   body.compact .box { padding: .45rem .7rem; margin: .5rem 0; }
   body.compact ol.think li { margin: .3rem 0; }
   body.compact footer { margin-top: .6rem; padding-top: .35rem; }
-  body.compact .trick p { margin: .2rem 0; }
-  body.compact .trick { padding: .45rem .55rem; }
+  body.compact .trick p { margin: .15rem 0; }
+  body.compact .trick { padding: .4rem .5rem; }
   body.compact .write { height: 1.2rem; }
   body.compact p { margin: .4rem 0; }
   body.compact h1 { font-size: 15pt; }
   /* The whole point of this sheet is that it is one page. */
-  .tricks { grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .tricks { grid-template-columns: repeat(3, 1fr); gap: 3mm; }
   .trick { background: #fff; border-top: 2px solid #000; }
   body.compact .write { height: 1.35rem; }
 }
