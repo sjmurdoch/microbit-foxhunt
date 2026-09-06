@@ -51,7 +51,7 @@ The receiver's main loop. It imports `HoundController` from `hound_logic` — **
 
 ## 4. Measured radio characteristics
 
-Measured on two micro:bit v2 boards (DAPLink 0257, MicroPython 1.13). **These are indoor line-of-sight measurements. They are not a substitute for calibrating in the real playfield.**
+Measured on two micro:bit v2 boards (DAPLink 0257, MicroPython 1.13 — that is release 2.0.0-beta.5; both boards now run 2.1.2). **The transmit-power and propagation figures below are indoor line-of-sight measurements and are not a substitute for calibrating in the real playfield** — the outdoor calibration further down is where the game's constants actually come from.
 
 ### Transmit power
 
@@ -79,9 +79,30 @@ Indoors there is effectively **no usable distance gradient between 2 m and 5 m**
 * Stationary RSSI noise was 7–8 dB peak-to-peak — more than one bar's worth — so some display jitter is unavoidable.
 * Free space (exponent 2.0) predicts roughly −81 dBm at 22 m, so outdoors the signal should behave far more monotonically. Calibrate there.
 
+### Outdoor field calibration (2026-09-06)
+
+Run with `calibrate.py` in the real playfield: hound tethered to USB, fox carried out on a battery, 15 s per point, figures are the Z1 median.
+
+| Distance | Z1 RSSI | Z1 packets | Z2 | Z3 |
+|----------|---------|------------|----|----|
+| 1 m  | −52.0 dBm | 75/75 | 75 | 74 |
+| 3 m  | −59.0 dBm | 75/75 | 74 | 74 |
+| 8 m  | −80.0 dBm | 74/75 | 19 | 0  |
+| 15 m | −89.0 dBm | 16/75 | 0  | 0  |
+| 20 m | −87.0 dBm | 56/75 | 0  | 0  |
+
+This is where `MIN_RSSI = -87` and `MAX_RSSI = -52` come from.
+
+**20 m reads stronger than 15 m** — in RSSI and in packet delivery (56/75 against 16/75), so it is not RSSI noise. This is almost certainly a two-ray ground-reflection null: at λ = 12.5 cm the first null falls at 2·h₁·h₂/λ, which is 16 m with both units about a metre off the ground, and the signal then climbs back toward the next lobe near 32 m. Consequences:
+
+* The far end of the scale is a null, not a range limit. `calibrate.py` used to assume the furthest point was the weakest and would silently take the wrong floor; it now takes the true minimum and warns when the two differ.
+* Around 15 m the display blanks, because −89 is just below `MIN_RSSI`, while the Z1 audio keeps working. That is a deliberate trade — see the comment in `hound_logic.py`.
+* Outdoor propagation is **not** the clean exponent 2.0 that the indoor section hoped for. Between consecutive points it is 1.47 (1→3 m), 4.93 (3→8 m), 3.30 (8→15 m) and −1.60 (15→20 m). The n≈4 stretch is the two-ray regime past the breakpoint, not an anomaly. What did improve is monotonicity: the curve rises steadily from 1 m to 15 m, with none of the indoor flat spot.
+* 1→3 m is only 7 dB, one bar across the first three metres. Close-in tracking rests on the attenuator and body shielding (gotcha 9), not on the bar graph.
+
 ### Receiver floor
 
-The nRF52833 bottoms out near −96 dBm. This was visible in practice: Z2 at −92 dBm only got 3% of packets through. **`MIN_RSSI = -105` is therefore below anything the radio can receive**, so the bottom of the scale is unreachable.
+The nRF52833 bottoms out near −96 dBm. This was visible in practice: Z2 at −92 dBm only got 3% of packets through. This is why the original `MIN_RSSI = -105` was unusable — it sat below anything the radio can receive, so the bottom of the scale could never be reached. The field-calibrated −87 clears the floor by 9 dB.
 
 ### Things that are *not* problems
 
@@ -113,7 +134,7 @@ Flashing targets depend on `check`, so code that fails its tests never reaches a
     serial 9906360200052820726e40a4da840fa7000000006e052820
 ```
 
-It flags two things worth catching early: a board behind the newest release, and a board running **v1** firmware, which is the fingerprint of an accidental `uflash` (the generation is read from `os.uname().machine` — nRF51 is v1, nRF52 is v2). Note `sys.implementation` is not useful here: every micro:bit v2 release from 2.0.0 to 2.1.2 reports MicroPython core 1.13, so only `os.uname().release` identifies the build.
+It flags two things worth catching early: a board behind the newest release, and a board running **v1** firmware, which is the fingerprint of an accidental `uflash` (the generation is read from `os.uname().machine` — nRF51 is v1, nRF52 is v2). Note `sys.implementation` is not useful here: the MicroPython core version does not track the micro:bit release — v2.1.0, v2.1.1 and v2.1.2 all report core 1.18 (2.0.0 reports 1.15, and 2.0.0-beta.5 reports 1.13), so only `os.uname().release` identifies the build.
 
 `LATEST_MICROPYTHON` in `flash.py` is a hand-maintained constant, last checked 2026-09-06 against v2.1.2; it only drives the "newer available" hint.
 
@@ -175,11 +196,18 @@ A residual remains at zone boundaries: a single stray packet from a closer beaco
 
 9. **The antenna is omnidirectional**: the micro:bit's PCB antenna gives essentially no directional information, so the hound cannot show a bearing — only a strength. Players find the fox either by walking and watching whether the reading rises, or by **body shielding**: a human body absorbs enough 2.4 GHz to drop the signal noticeably, so turning on the spot until the reading dips means the fox is behind you. This is what PLAYER_GUIDE means by "turn your body". It also means the reading depends on how the device is held, which is part of what a field calibration has to absorb — calibrate holding the hound the way a child will.
 
+10. **A Ctrl-D soft reboot after the radio has run corrupts the heap.** Measured on v2.1.2, 2026-09-06. `hound.py` failed **5 of 5** soft reboots with tracebacks from a file that was byte-for-byte correct on the device — verified by reading it back and hashing it. The errors were not stable: `IndentationError: unexpected indent` at line 41, then 61, then 68, then 17, then 18; `SyntaxError: invalid syntax` on valid code; once `NameError: name 'display' isn't defined` after `from microbit import *` had run. A radio-only script failed 1 of 5, with the tell: `MemoryError: memory allocation failed, allocating 3379037196 bytes`. A script that never calls `radio.on()` failed 0 of 5.
+
+    The pattern is size-of-allocation dependent, which is what heap corruption looks like: a soft reboot reinitialises MicroPython's memory but does not reset the radio peripheral, so it stays live over the top of a heap that is being handed out again. The more the restarted program allocates — and parsing a 100-line file allocates a lot — the more reliably it is hit.
+
+    **A hardware reset is clean**: `hound.py` booted without a traceback 14 of 14 times when reset by opening the USB serial port (DAPLink `Auto Reset: 1`). So this does not affect play — a battery-powered board always hardware-resets — but it does affect host-side tooling. `flash.py`'s `boot_check` used to soft reboot and consequently failed almost every flash with a bogus `IndentationError`; it now resets by opening the port and just listens. If you soft reboot by hand in the REPL after running the fox or the hound, distrust what you see and pull the USB lead instead.
+
+
 ## 8. Open items
 
-* **`MIN_RSSI` / `MAX_RSSI` are not field-calibrated.** The present values (−105 / −70) place the bottom of the scale below the receiver floor and saturate the display over the close half of the playfield. Correct values cannot be derived from the indoor data in section 4. Run `calibrate.py` outdoors in the real playfield; it prints the two constants directly.
-* **`EMA_ALPHA` (0.8)** was tuned for a <300 ms response before the 7–8 dB stationary noise floor was known. Revisit alongside the calibration, with outdoor data.
-* **Z3 may be too weak indoors.** At −87.9 dBm it sits near the receiver floor even at 2 m, so the danger zone never reads cleanly indoors. Outdoors it should be stronger; if not, raise the Z3 transmit power.
+* ~~**`MIN_RSSI` / `MAX_RSSI` are not field-calibrated.**~~ Done 2026-09-06: the outdoor calibration above gives −87 / −52, and both ends now sit above the receiver floor. The remaining uncertainty is the 15 m null — worth re-measuring at a different antenna height to confirm it moves.
+* **`EMA_ALPHA` (0.8)** was tuned for a <300 ms response before the 7–8 dB stationary noise floor was known. Still open: the outdoor calibration does not settle it, because `calibrate.py` reports only a median per distance and never the spread. With 7 dB bars against 7–8 dB of noise, roughly a bar of jitter is expected while standing still.
+* ~~**Z3 may be too weak indoors.**~~ Resolved 2026-09-06: outdoors Z3 delivered 74/75 packets at 3 m, so it does not need more transmit power. It is gone by 8 m, which is the intended behaviour for a danger zone.
 
 * **Is the NeoPixel clear-after-beep needed at all?** It was added against a mechanism that turned out to be wrong (gotcha 3). The pixels are vestigial — nothing in the game uses them, both scripts only blank them — so the cheapest answer may be not to attach them, or not to construct the `NeoPixel` object. Test with a strip attached: play tones for a few minutes with the deferred clear removed and see whether any pixel lights.
 
@@ -188,7 +216,7 @@ A residual remains at zone boundaries: a single stray packet from a closer beaco
 Carried over from the original plan; none of these can be satisfied from a desk.
 
 * **Battery endurance.** The fox is required to run for 2 hours and has never been timed. Run it for 2.5 h on freshly charged cells and confirm it is still transmitting at the end.
-* **Outdoor zone thresholds.** Walk away from the fox in the open and record where the audio drops from zone 3 to 2, and 2 to 1. Everything measured so far is indoors, where propagation was flat from 2 m to 5 m and then fell off a cliff (section 4).
+* **Outdoor zone thresholds.** Partly done 2026-09-06. The calibration brackets them — Z3 is strong at 3 m and gone by 8 m; Z2 is at its fringe at 8 m (25% delivery) and gone by 15 m — but the crossings themselves were not walked. Sample 4, 5 and 6 m for the 3→2 boundary and 10 and 12 m for 2→1.
 * **Usability with a real player.** Hand the hound to a child who has not been briefed beyond "follow the sound, press A if the screen fills up" and confirm they can find the fox.
 
 ## History

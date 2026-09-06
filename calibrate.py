@@ -144,7 +144,12 @@ def main():
         print("  %6.1f m : %7.1f dBm" % (d, r))
 
     nearest, strongest = readings[0]
-    furthest, weakest = readings[-1]
+    furthest = readings[-1][0]
+    # The weakest signal is not always the furthest one: a ground-reflection
+    # null can leave a mid-range distance quieter than the far edge. Take the
+    # real minimum, or everything at the null reads below the bottom bar.
+    weakest_at, weakest = min(readings, key=lambda dr: dr[1])
+
     max_rssi = int(round(strongest))
     min_rssi = max(int(round(weakest)), RECEIVER_FLOOR)
 
@@ -154,20 +159,30 @@ def main():
               "Sample a wider spread of distances." % (span, BAR_COUNT))
         return 1
 
-    # Round the span up to a whole number of bars so ATTEN_STEP divides exactly.
+    # Round the span to a whole number of bars so ATTEN_STEP divides exactly.
+    # Rounding up drops MIN_RSSI below the weakest reading, which can undo the
+    # receiver-floor clamp above, so round down in that case instead.
     step = -(-span // BAR_COUNT)
+    if max_rssi - step * BAR_COUNT < RECEIVER_FLOOR:
+        step = span // BAR_COUNT
     min_rssi = max_rssi - step * BAR_COUNT
 
     print("\n--- put these in hound_logic.py ---")
-    print("MIN_RSSI = %d      # signal at %.1f m, the far edge" % (min_rssi, furthest))
+    print("MIN_RSSI = %d      # weakest signal, measured at %.1f m" % (min_rssi, weakest_at))
     print("MAX_RSSI = %d      # saturates at %.1f m, where the attenuator takes over" % (max_rssi, nearest))
     print("\n(ATTEN_STEP derives from these automatically: %d dB = exactly one bar.)" % step)
+    if weakest_at != furthest:
+        print("\nNote: the weakest signal was at %.1f m, not at the far edge (%.1f m). That\n"
+              "is usually a ground-reflection null rather than a bad reading: at 2.4 GHz\n"
+              "the first null falls near 2*h1*h2/0.125 m, so about 16 m with both units a\n"
+              "metre up. Re-measure %.1f m with the fox raised or lowered by half a metre;\n"
+              "the dip should move." % (weakest_at, furthest, weakest_at))
     print("\nThe hound is still running the calibration logger.")
     print("Restore the game with:  make flash-hound")
     if weakest < RECEIVER_FLOOR:
         print("\nNote: %.1f dBm at %.1f m is below the ~%d dBm receiver floor, so MIN_RSSI\n"
               "was clamped. The fox is out of reliable range at that distance."
-              % (weakest, furthest, RECEIVER_FLOOR))
+              % (weakest, weakest_at, RECEIVER_FLOOR))
     return 0
 
 

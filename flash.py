@@ -201,13 +201,22 @@ def verified_put(port, src, target, tries=6):
 
 
 def boot_check(port, seconds=5.0):
-    """Reset and watch for a traceback from main.py."""
+    """Reset and watch for a traceback from main.py.
+
+    The reset is the DAPLink auto-reset: opening the port reboots the board in
+    hardware (AGENTS.md section 5), so main.py starts on its own and we only
+    have to listen. Do NOT soft reboot with Ctrl-D instead. Soft-rebooting a
+    program that has used the radio corrupts the heap -- the peripheral stays
+    live across the reboot while MicroPython reinitialises memory underneath it
+    -- and the corruption surfaces as tracebacks from a file that is
+    byte-for-byte correct on the device: IndentationError at a different line
+    each time, SyntaxError on valid code, or an impossible MemoryError.
+    Measured on v2.1.2: hound.py failed 5/5 soft reboots, a radio-only script
+    1/5, a script that never calls radio.on() 0/5, and hound.py 0/8 on this
+    hardware reset. See AGENTS.md gotcha 10.
+    """
     s = serial.Serial(port, BAUD, timeout=1, parity="N")
     try:
-        s.write(b"\r\x03\x03")
-        time.sleep(0.3)
-        s.reset_input_buffer()
-        s.write(b"\x04")  # soft reboot -> run main.py
         deadline = time.time() + seconds
         buf = b""
         while time.time() < deadline:

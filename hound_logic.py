@@ -6,12 +6,20 @@ to the board -- see AGENTS.md section 5.
 """
 
 # --- Signal scale ----------------------------------------------------------
-# WARNING: not yet field-calibrated. Measured indoors (see AGENTS.md section 4)
-# the Z1 beacon read -65.7 dBm at 2 m and -85.2 dBm at 11 m, so MAX_RSSI = -70
-# saturates the display over the close half of the playfield. Run calibrate.py
-# outdoors in the real playfield before a game.
-MIN_RSSI = -105
-MAX_RSSI = -70
+# Field-calibrated outdoors on 2026-09-06 with calibrate.py (AGENTS.md section
+# 4): the Z1 beacon read -52 dBm at 1 m and -87 dBm at 20 m. Both ends sit above
+# the -96 dBm receiver floor, so every bar is now reachable -- the old -105
+# bottom was not. One bar is 7 dB, about the size of the stationary noise, so a
+# bar of jitter while standing still is expected.
+#
+# calibrate.py suggests -92 (8 dB bars), taking the -89 dBm ground-reflection
+# null at 15 m as the floor. Deliberately not used: only 21% of packets arrive
+# at the null anyway, and 8 dB bars would leave a single bar barely above the
+# noise. The cost is that the display blanks around 15 m while the Z1 audio
+# keeps working -- the bar graph is the fine instrument, the audio the coarse
+# one. Re-run calibrate.py if the playfield changes.
+MIN_RSSI = -87
+MAX_RSSI = -52
 
 BAR_COUNT = 5
 RSSI_SPAN = MAX_RSSI - MIN_RSSI
