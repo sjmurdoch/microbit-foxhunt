@@ -11,11 +11,18 @@ import radio
 import music
 import neopixel
 
-from hound_logic import HoundController, BAR_COUNT
+from hound_logic import HoundController
 from radio_config import RADIO_GROUP
 
 BEEP_MS = 100
 BEEP_HZ = {1: 400, 2: 800, 3: 1200}
+
+# The LED matrix is physically 5x5, which is a hardware fact and not the same
+# thing as BAR_COUNT. BAR_COUNT is a tunable that a recalibration can change,
+# and it used to drive both loops below: dropping it to 4 would have left row 4
+# and column 4 holding whatever was last written to them for good, since the
+# bars != last_bars guard means the matrix is only redrawn when the count moves.
+MATRIX_SIZE = 5
 
 # Blank any attached ZIP LEDs once, at boot. They power on in a random state
 # (AGENTS.md gotcha 4) and nothing in the game uses them, so this is the only
@@ -60,9 +67,10 @@ while True:
     # multiplexed matrix.
     bars = controller.get_display_bars()
     if bars != last_bars:
-        for y in range(BAR_COUNT):
-            brightness = 9 if (BAR_COUNT - 1 - y) < bars else 0
-            for x in range(BAR_COUNT):
+        lit = min(bars, MATRIX_SIZE)          # fills from the bottom row up
+        for y in range(MATRIX_SIZE):
+            brightness = 9 if (MATRIX_SIZE - 1 - y) < lit else 0
+            for x in range(MATRIX_SIZE):
                 display.set_pixel(x, y, brightness)
         last_bars = bars
 

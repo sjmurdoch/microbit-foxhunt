@@ -285,6 +285,15 @@ def test_hound_imports_the_tested_logic():
     assert "class HoundController" not in source
 
 
+def test_display_geometry_is_not_tied_to_the_bar_count():
+    """Regression: hound.py drove both matrix axes from BAR_COUNT, which is a
+    tunable the calibration can change. At BAR_COUNT = 4 the top row and the
+    right-hand column would never be written again."""
+    source = open("hound.py").read()
+    assert "MATRIX_SIZE = 5" in source
+    assert "range(BAR_COUNT)" not in source
+
+
 def test_radio_group_is_not_hardcoded_in_device_code():
     """Regression: the group was written out in both fox.py and hound.py, so
     the two roles could silently drift onto different groups."""
