@@ -905,3 +905,17 @@ def test_both_pupil_sheets_are_offered_on_the_flasher():
     assert 'href="worksheet.html"' in teaching
     assert 'href="hunt-card.html"' in teaching
     assert "20-minute" in teaching
+
+
+def test_the_hound_is_a_dog():
+    """It was a horse. Numeric character references are unreadable in source, so
+    nothing catches this by eye -- U+1F434 HORSE FACE and U+1F436 DOG FACE are
+    two apart."""
+    import unicodedata
+
+    page = open(os.path.join("web", "index.html")).read()
+    used = {int(m) for m in re.findall(r"&#(1[0-9]{5});", page)}
+    names = {unicodedata.name(chr(cp)) for cp in used}
+    assert "DOG FACE" in names, sorted(names)
+    assert "FOX FACE" in names, sorted(names)
+    assert not any("HORSE" in n for n in names), sorted(names)
