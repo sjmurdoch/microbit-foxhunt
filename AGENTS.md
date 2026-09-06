@@ -277,16 +277,35 @@ The same shape of bug hit the display: `BAR_COUNT` meant both "how many bars" an
 
 ### Web flasher: not yet settled
 
-Ten questions were closed by measurement while building it (see the table in section 5). These are what is left, and none of them can be answered from a desk. `WEB_FLASHER_PLAN.md` carries the detail.
+Everything the web flasher does was measured on hardware while it was built (see the table in section 5). What follows is what is left, roughly in the order it is worth doing. `WEB_FLASHER_PLAN.md` section 9 carries the detail and the reasoning.
 
-* **An interrupted flash.** The claim that it fails loudly rather than silently is still reasoning. Pull the cable mid-flash; recovery is one 23-second reflash.
-* **`make integration` under browser contention.** `make devices` recovers on retry; the fuller tool has not been tried, because it needs a fox and an integration board.
-* **A WebUSB-flashed hound against a `make flash-hound` one**, at a fixed distance, to confirm installing 2.1.2 has not moved the radio behaviour.
-* **A radio group other than 16.** The group is address matching rather than RF channel, so propagation should not change -- but the whole calibration was taken on 16 and the group picker is the headline feature.
-* **The service worker under the `github.io` project subpath.** Scope is `/microbit-foxhunt/`, not `/`. A classic way to ship something that works on `localhost` and not in production.
-* **A Chromebook**, probably the commonest deployment target and untested.
-* **Whether `fox.py` and `hound.py` should print a startup marker.** They print nothing when healthy, so the boot check can only be negative. The library is now known to capture startup output, so `print("FOX_READY")` would make it positive for one line each, invisible in the field.
-* **Whether the `.hex` download should be a universal hex** whose v1 slot scrolls `NEED V2`. That path cannot check the board, so today a v1 board flashed from a download simply looks dead. The cost is bundling the v1 image and a fourth device file.
+**Needs boards and a field**
+
+* **An interrupted flash.** The claim that it fails loudly rather than silently is still reasoning, not measurement. Pull the cable mid-flash; recovery is one 23-second reflash, so this is cheap now.
+* **`make integration` after a browser flash.** `make devices` recovers on a retry, but the fuller tool has not been tried, because it needs a fox and an integration board at the same time.
+* **A WebUSB-flashed hound against a `make flash-hound` one**, at a fixed distance, to confirm that installing 2.1.2 has not moved the radio behaviour.
+* **A radio group other than 16.** The group is address matching rather than RF channel, so propagation should not change — but the whole calibration was taken on 16, and the group picker is now a headline feature with a per-group tally built on it.
+* **The teaching materials with real children.** None of the four cognitive walkthroughs is a substitute for watching a class use the worksheet or a pack use the hunt card. This is the acceptance test for all of it.
+
+**Needs a different machine**
+
+* **Offline operation has never been verified.** The service worker exists and caches the site, but nobody has loaded the page, disconnected, and flashed a board. An attempt to check it in headless Chrome hung and was abandoned. Until it is confirmed, **do not claim on the site that the page works offline** — the wording there deliberately says a flashed board needs only its battery, which is true and independently useful.
+* **A Chromebook**, probably the commonest school deployment and still untested.
+* **Print rendering on Linux and Windows.** The hunt card has to fit one side of paper. It fits with about 21 mm to spare on macOS, but Georgia is missing on most Linux systems and the fallback serif is taller — the card passed locally and came out at two pages on the CI runner. **CI is the arbiter, not your own printer**, and anyone editing that card should expect to be told so.
+
+**Decisions, no measurement required**
+
+* **Should `fox.py` and `hound.py` print a startup marker?** They print nothing when healthy, so the boot check can only be negative. The library is now known to capture startup output, so `print("FOX_READY")` would make it positive for one line each, invisible in the field.
+* **Should the `.hex` download be a universal hex** whose v1 slot scrolls `NEED V2`? That path cannot check the board, so today a v1 board flashed from a download simply looks dead. The cost is bundling the v1 image and a fourth device file.
+* **Gotcha 6 needs rewriting**, once the `uflash` finding above is confirmed on a second board.
+
+**Cognitive walkthroughs still to do**
+
+Four are recorded in `COGNITIVE-WALKTHROUGHS.md`: the teacher, the scout leader, the pupil with the worksheet, and the scout with the hunt card. Not yet walked, in rough order of value:
+
+* **Someone on Firefox, Safari or an iPad**, whose only route is the `.hex` download. It is the least examined path on the site and the one with no board-version check.
+* **A maintainer returning to the project after six months**, using `make devices`, the identify button and the radio monitor to work out what is on a pile of boards.
+* **A parent or hobbyist with two boards and no institution**, who has no lesson to run and wants to play with their own children.
 
 ### Acceptance tests not yet run
 

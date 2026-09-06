@@ -144,14 +144,14 @@ ol.think li { margin: .5rem 0; }
 .log .write { margin-top: .3rem; }
 
 @media print {
-  body.compact { font-size: 9pt; }
-  body.compact h2 { margin: .7rem 0 .25rem; }
+  body.compact { font-size: 8.5pt; line-height: 1.4; }
+  body.compact h2 { margin: .55rem 0 .2rem; }
   body.compact .box { padding: .45rem .7rem; margin: .5rem 0; }
-  body.compact ol.think li { margin: .3rem 0; }
+  body.compact ol.think li { margin: .2rem 0; }
   body.compact footer { margin-top: .6rem; padding-top: .35rem; }
   body.compact .trick p { margin: .15rem 0; }
   body.compact .trick { padding: .4rem .5rem; }
-  body.compact .write { height: 1.2rem; }
+  body.compact .write { height: 1.1rem; }
   body.compact p { margin: .4rem 0; }
   body.compact h1 { font-size: 15pt; }
   /* The whole point of this sheet is that it is one page. */
