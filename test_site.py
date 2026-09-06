@@ -919,3 +919,36 @@ def test_the_hound_is_a_dog():
     assert "DOG FACE" in names, sorted(names)
     assert "FOX FACE" in names, sorted(names)
     assert not any("HORSE" in n for n in names), sorted(names)
+
+
+MICROBIT_VERSION_HELP = (
+    "https://support.microbit.org/support/solutions/articles/"
+    "19000119162-how-to-identify-the-version-number-of-your-micro-bit")
+
+
+def test_v2_identification_is_accurate():
+    """This was wrong: it claimed a V2 "says micro:bit on the back and has a gold
+    notch at the top edge". The gold part is the logo on the front, which is a
+    touch button; the notches are in the edge connector along the bottom. Someone
+    sorting a cupboard by that description would have picked out the wrong boards.
+    """
+    page = open(os.path.join("web", "index.html")).read()
+    intro = page[page.index('id="intro"'):page.index('id="setup"')]
+    assert "logo on the front is gold" in intro
+    assert "has notches" in intro
+    assert MICROBIT_VERSION_HELP in intro
+    assert "gold notch at the top edge" not in intro
+
+
+def test_lesson_plan_helps_teachers_sort_a_mixed_cupboard():
+    page = render("lesson-plan.html")
+    assert MICROBIT_VERSION_HELP in page
+    assert "notches" in page and "gold" in page
+
+
+def test_printed_pages_show_addresses_for_links_that_matter():
+    """A teacher holding a printout cannot click. Links marked .showurl print
+    their address; the rest stay clean."""
+    css = open(os.path.join("web", "teaching.css")).read()
+    assert 'a.showurl[href^="http"]::after' in css
+    assert 'content: " (" attr(href) ")"' in css
