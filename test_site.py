@@ -869,9 +869,12 @@ def test_hunt_card_carries_the_learning_as_tactics():
     are the three learning objectives in disguise, so each must still be there
     even though none is labelled as science."""
     page = render("hunt-card.html")
-    assert "Walk and watch" in page and "fades the further" in page      # distance
-    assert "Turn on the spot" in page and "does not go through people" in page  # blocking
-    assert "Sunglasses" in page and "only changes the Hound" in page     # saturation
+    # Headings are structural; the concepts are matched on a keyword rather than
+    # a whole phrase, so editing the wording does not fail the build while
+    # dropping a trick still does.
+    assert "Walk and watch" in page and "fades" in page and "distance" in page
+    assert "Turn on the spot" in page and "does not go through people" in page
+    assert "Sunglasses" in page and "only changes the Hound" in page
 
 
 def test_hunt_card_asks_the_reflection_questions():
@@ -974,3 +977,95 @@ def test_teaching_comes_before_the_download_fallback():
     # The unsupported-browser banner jumps straight there, so nobody who needs
     # the fallback has to hunt for it.
     assert 'href="#downloads"' in page[:page.index('id="setup"')]
+
+
+# --- printing ---------------------------------------------------------------
+
+CHROME_CANDIDATES = (
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+)
+
+
+def find_chrome():
+    for candidate in CHROME_CANDIDATES:
+        if os.path.isabs(candidate):
+            if os.path.exists(candidate):
+                return candidate
+        else:
+            found = shutil.which(candidate)
+            if found:
+                return found
+    return None
+
+
+def print_to_pdf(tmp_path, page, paper):
+    """Render one page to PDF at a given paper size and return the page count.
+
+    The stylesheet deliberately declares no @page size so the printer's own
+    paper is used; the size is forced here, for this measurement only.
+    """
+    import build_site
+
+    chrome = find_chrome()
+    if chrome is None:
+        pytest.skip("no Chrome or Chromium available to print with")
+
+    out = tmp_path / paper
+    build_site.build(str(out), run_bundle=False)
+    css = out / "teaching.css"
+    css.write_text(css.read_text()
+                   + "\n@media print { @page { size: %s; } }\n" % paper)
+
+    pdf = tmp_path / ("%s-%s.pdf" % (paper, page))
+    subprocess.run(
+        [chrome, "--headless", "--disable-gpu", "--no-sandbox",
+         "--no-pdf-header-footer", "--print-to-pdf=%s" % pdf,
+         (out / page).as_uri()],
+        capture_output=True, timeout=120)
+    if not pdf.exists():
+        pytest.skip("headless Chrome produced no PDF")
+    blob = pdf.read_bytes()
+    return blob.count(b"/Type /Page") - blob.count(b"/Type /Pages")
+
+
+@pytest.mark.parametrize("paper", ["A4", "Letter"])
+def test_hunt_card_really_is_one_page(tmp_path, paper):
+    """One side of paper is the hunt card's entire premise, and no amount of
+    counting words in the source can confirm it -- this failed at two pages while
+    a length check passed. It has to fit both papers: A4 is 210x297mm and Letter
+    216x279mm, so A4 is the narrower and Letter the shorter, and the sheet must
+    satisfy both at once."""
+    assert print_to_pdf(tmp_path, "hunt-card.html", paper) == 1
+
+
+@pytest.mark.parametrize("page", ["worksheet.html", "lesson-plan.html"])
+def test_long_sheets_paginate_the_same_on_both_papers(tmp_path, page):
+    """These are meant to run to several pages. What would be a bug is one paper
+    size overflowing into an extra, mostly empty, sheet."""
+    a4 = print_to_pdf(tmp_path, page, "A4")
+    letter = print_to_pdf(tmp_path, page, "Letter")
+    assert a4 == letter, "%s: %d pages on A4, %d on Letter" % (page, a4, letter)
+
+
+def test_print_stylesheet_does_not_force_a_paper_size():
+    """Naming A4 forces that page box even on a printer loaded with Letter,
+    which then scales or crops. Leaving it out uses whatever is in the tray."""
+    css = open(os.path.join("web", "teaching.css")).read()
+    assert "@page" in css
+    assert "size: A4" not in css and "size:A4" not in css
+
+
+@pytest.mark.parametrize("name", TEACHING)
+def test_printable_pages_offer_a_print_button(name):
+    """Every sheet meant for paper has a button, and it sits inside the .noprint
+    nav strip so it cannot print itself. It starts hidden and is revealed by
+    script: a dead button on a page someone is about to print is worse than
+    none."""
+    page = render(name)
+    assert "data-print" in page
+    assert 'src="teaching.js"' in page
+    nav = page[page.index('class="nav'):page.index("</p>", page.index('class="nav'))]
+    assert "data-print" in nav, "the print button must be inside the .noprint strip"
+    assert "hidden" in page[page.index("data-print") - 80:page.index("data-print") + 40]

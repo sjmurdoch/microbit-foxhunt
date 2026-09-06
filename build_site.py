@@ -440,7 +440,7 @@ def build(out=DEFAULT_OUT, run_bundle=True):
         write(os.path.join(out, name),
               apply(open(os.path.join(WEB, name)).read(), values))
 
-    for name in ("app.css", "teaching.css"):
+    for name in ("app.css", "teaching.css", "teaching.js"):
         shutil.copyfile(os.path.join(WEB, name), os.path.join(out, name))
 
     sw = open(os.path.join(WEB, "src", "sw.js")).read().replace("__STAMP__", stamp)
