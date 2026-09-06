@@ -827,3 +827,25 @@ def test_lesson_plan_asks_for_feedback():
     page = render("lesson-plan.html")
     assert "s.murdoch@ucl.ac.uk" in page
     assert "mailto:s.murdoch@ucl.ac.uk" in page
+
+
+@pytest.mark.parametrize("page,terms", [
+    ("worksheet.html", ("omnidirectional", "behind you", "listens in every direction")),
+    ("lesson-plan.html", ("omnidirectional", "Yagi", "cannot indicate a bearing")),
+])
+def test_pages_explain_why_there_is_no_direction(page, terms):
+    """The single most counter-intuitive thing about the game: the receiver
+    reports strength and never bearing, so the only way to get a direction is to
+    block the signal with your own body. Pupils who miss this wander. It is
+    explained at three different depths across the site, and each needs to keep
+    saying it."""
+    rendered = render(page)
+    for term in terms:
+        assert term in rendered, "%s: %s" % (page, term)
+
+
+def test_index_explains_the_aerial_too():
+    page = open(os.path.join("web", "index.html")).read()
+    intro = page[page.index('id="intro"'):page.index('id="setup"')]
+    assert "omnidirectional" in intro
+    assert "Directional aerials do exist" in intro
