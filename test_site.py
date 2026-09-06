@@ -647,10 +647,45 @@ def test_teaching_pages_have_no_unsubstituted_placeholders(name):
     assert not leftover, sorted(set(leftover))
 
 
+def test_index_is_well_formed():
+    from build_site import apply, substitutions
+
+    page = apply(open(os.path.join("web", "index.html")).read(),
+                 substitutions(build_manifest())).replace("__SCRIPT__", "app.js")
+    problems, unclosed = check_html_balance(page)
+    assert not problems, problems
+    assert not unclosed, unclosed
+
+
+def test_index_introduces_the_game():
+    """The page is the entry point for someone who has never heard of a fox hunt
+    or held a micro:bit, so the introduction is load-bearing rather than
+    decorative. These are the things they cannot proceed without knowing."""
+    page = open(os.path.join("web", "index.html")).read()
+    intro = page[page.index('id="intro"'):page.index('id="setup"')]
+    for essential in (
+        "hide-and-seek",          # what the game is
+        "amateur radio direction finding",  # what it is really called
+        "Fox", "Hound",           # the two roles
+        "V2",                     # the hardware requirement that bites
+        "charge-only", "Charge-only",  # the commonest practical failure
+        "Button A",               # why the attenuator exists
+    ):
+        assert essential.lower() in intro.lower(), essential
+    assert 'href="lesson-plan.html"' in intro and 'href="worksheet.html"' in intro
+
+
 @pytest.mark.parametrize("name", TEACHING)
 def test_teaching_pages_are_well_formed(name):
     """They are printed and handed to children; an unclosed tag is not
-    acceptable. Checked with an HTML parser rather than an XML one: these are
+    acceptable."""
+    problems, unclosed = check_html_balance(render(name))
+    assert not problems, problems
+    assert not unclosed, unclosed
+
+
+def check_html_balance(markup):
+    """Tag balance, via an HTML parser rather than an XML one: these pages are
     HTML5, with a bare doctype and named entities that XML rejects."""
     from html.parser import HTMLParser
 
@@ -681,9 +716,8 @@ def test_teaching_pages_are_well_formed(name):
                 self.stack.pop()
 
     parser = Balanced()
-    parser.feed(render(name))
-    assert not parser.problems, parser.problems
-    assert not parser.stack, ["<%s> at line %d never closed" % t for t in parser.stack]
+    parser.feed(markup)
+    return parser.problems, ["<%s> at line %d never closed" % t for t in parser.stack]
 
 
 def test_worksheet_quotes_the_hounds_real_scale():

@@ -22,6 +22,92 @@
   <code>MICROBIT</code> drive.
 </div>
 
+<section id="intro">
+  <h2>What is a radio fox hunt?</h2>
+
+  <p>
+    It is hide-and-seek, except the thing you hide gives itself away by radio instead of by being
+    visible. One small computer &mdash; the <strong>Fox</strong> &mdash; is hidden somewhere and
+    quietly transmits. Everyone else carries a <strong>Hound</strong>, which cannot see the Fox and
+    cannot point at it, but <em>can</em> tell how strong the signal is. Players work out where the
+    Fox must be by moving around and watching that strength change.
+  </p>
+
+  <p>
+    Real radio amateurs do this as a sport, on foot and over several kilometres; it is called
+    <em>amateur radio direction finding</em>, and &ldquo;fox hunting&rdquo; is what everyone
+    actually calls it. This is a small version for a playground, a park or a school field.
+  </p>
+
+  <h3>The Fox sends out three signals, not one</h3>
+
+  <p>
+    That is the trick that makes it playable. The Fox transmits a loud signal, a medium one and a
+    quiet one, over and over. The loud one carries a long way; the quiet one only reaches a few
+    metres. So <em>which</em> of them a Hound can hear tells you roughly how close you are, and the
+    Hound turns that into a beep rate.
+  </p>
+
+  <svg class="diagram" viewBox="0 0 440 210" role="img"
+       aria-label="Diagram: three nested zones around a hidden fox. The outer zone gives a slow
+                   beep, the middle a medium beep, and the innermost a fast alarm. A hound in the
+                   outer zone hears only the loudest signal.">
+    <circle class="z1" cx="150" cy="105" r="96"/>
+    <circle class="z2" cx="150" cy="105" r="60"/>
+    <circle class="z3" cx="150" cy="105" r="28"/>
+    <text class="fox" x="150" y="112" text-anchor="middle">&#129418;</text>
+    <text class="lbl" x="150" y="140" text-anchor="middle">Fox (hidden)</text>
+    <text class="lbl" x="150" y="70" text-anchor="middle">fast</text>
+    <text class="lbl" x="150" y="46" text-anchor="middle">medium</text>
+    <text class="lbl" x="150" y="18" text-anchor="middle">slow beep</text>
+    <text class="hound" x="330" y="100" text-anchor="middle">&#128052;</text>
+    <text class="lbl" x="330" y="124" text-anchor="middle">Hound</text>
+    <text class="lbl" x="330" y="142" text-anchor="middle">&ldquo;a long way off&rdquo;</text>
+    <path class="sight" d="M300 105 L200 105"/>
+  </svg>
+
+  <p class="note">
+    Closer in, the display fills up and stops being useful &mdash; every bar lit looks the same at
+    five metres as at one. <strong>Button A</strong> turns the Hound's sensitivity down a notch so
+    the bars start responding again, which is how players close the last few metres.
+  </p>
+
+  <h3>What you need</h3>
+
+  <ul>
+    <li><strong>Two or more BBC micro:bit V2 boards.</strong> A micro:bit is a small programmable
+      computer, about the size of a credit card, widely used in UK schools. <em>V2 only</em> &mdash;
+      the game needs the speaker that the older V1 does not have. A V2 says &ldquo;micro:bit&rdquo;
+      on the back and has a gold notch at the top edge.</li>
+    <li><strong>A battery pack for each</strong>, usually 2&times;AAA. The Fox has to run
+      unattended for the whole session.</li>
+    <li><strong>A USB data cable</strong> to set the boards up from this page. Charge-only cables
+      will not work &mdash; a very common stumbling block.</li>
+    <li><strong>Somewhere to play</strong>, ideally outdoors and 20&ndash;30&nbsp;m across. Indoors
+      works but is much less predictable, because signals bounce off walls.</li>
+  </ul>
+
+  <h3>How a game goes</h3>
+
+  <ol>
+    <li>Set the boards up from this page &mdash; one Fox, as many Hounds as you have.</li>
+    <li>Hide the Fox with its battery. It keeps its display switched off so it cannot be spotted.</li>
+    <li>Players sweep the area listening to their Hound. Slow beep means far, fast alarm means close.</li>
+    <li>Because the aerial hears equally in all directions, there is no arrow to follow. Players
+      turn on the spot instead: their own body blocks the signal, so when the reading dips, the Fox
+      is behind them.</li>
+    <li>The first to find it wins. Ten to twenty minutes is typical for a school field.</li>
+  </ol>
+
+  <p>
+    <strong>This page is the setup step.</strong> It copies the game onto your boards over USB &mdash;
+    nothing to install, no account, and no programming required. Once a board is set up it needs
+    only its battery. If you are running this as a lesson, there is a
+    <a href="lesson-plan.html">teacher's plan</a> and a <a href="worksheet.html">pupil worksheet</a>
+    further down.
+  </p>
+</section>
+
 <section id="setup">
   <h2>1. Choose a radio group</h2>
   <p>

@@ -153,3 +153,30 @@ footer { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1re
 
 .status.done .spinner { border: 2px solid var(--ok-fg); animation: none; }
 .bad-text { color: var(--bad-fg); }
+
+/* The zone diagram in the introduction. Someone who has never seen a fox hunt
+   needs to grasp "three nested signals, not one" before anything else on this
+   page makes sense, and a picture does that faster than a paragraph. */
+.diagram {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  height: auto;
+  margin: 1.2rem auto;
+}
+.diagram circle { fill: none; stroke: var(--accent); }
+.diagram .z1 { stroke-opacity: .35; stroke-dasharray: 4 4; }
+.diagram .z2 { stroke-opacity: .6; stroke-dasharray: 4 4; }
+.diagram .z3 { stroke-opacity: .95; }
+.diagram .lbl { font: 11px system-ui, sans-serif; fill: var(--muted); }
+.diagram .fox, .diagram .hound { font-size: 22px; }
+/* A plain dashed line, deliberately with no arrowhead: an arrow would imply the
+   Hound knows which way to go, which is exactly what it cannot do. */
+.diagram .sight {
+  stroke: var(--muted);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+  fill: none;
+}
+
+h3 { font-size: 1rem; margin: 1.4rem 0 .3rem; }
