@@ -1,0 +1,18 @@
+{
+  "name": "foxhunt-web-flasher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser flasher for the micro:bit fox hunt. Built by build_site.py.",
+  "license": "MIT",
+  "scripts": {
+    "build": "python3 build_site.py"
+  },
+  "dependencies": {
+    "@microbit/microbit-connection": "1.0.0",
+    "@microbit/microbit-fs": "0.10.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
