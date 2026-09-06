@@ -179,6 +179,46 @@ The `ufs` command-line tool always picks the first micro:bit it finds and cannot
 
 Host-side scripts must not repeat that mistake. `flash.pick_port` prints both boards with their serial numbers and exits rather than guessing; every tool goes through it. Silently picking the first board is worse than failing, because opening the fox when you meant the hound looks exactly like being out of radio range, and that is a miserable thing to diagnose in a field.
 
+### The web flasher
+
+`build_site.py` builds a browser-based flasher into `site/`, deployed to GitHub Pages by `.github/workflows/pages.yml`. It exists so that someone running a hunt -- a scout leader, a teacher -- can prepare a dozen boards without a checkout, `uv`, or `microfs`. Run it locally with `make site` and `make site-serve`; WebUSB works on `localhost` without HTTPS.
+
+**It writes firmware. `flash.py` does not.** This is the one thing to keep in mind when comparing them. `ufs` copies files onto whatever MicroPython is already installed; the web flasher builds a complete image -- MicroPython plus the filesystem -- and DAPLink writes it as one hex. Three consequences:
+
+* The entire `ufs put` failure class disappears. The `main.py`-last ordering and the hash verification in `flash.py` exist because a board that reboots mid-transfer corrupts the copy; an atomic image cannot do that. **Do not port that machinery into the JavaScript.** The `ROLES` mapping still matters, its ordering does not.
+* It pins the MicroPython version, so it has its own constant. `BUNDLED_MICROPYTHON` is what lands on a board; `LATEST_MICROPYTHON` means "the newest release that exists" and only drives a hint. They agree today and must be free to diverge -- section 6's rule about a constant carrying a second meaning.
+* It can move a board *off* a newer release onto ours, which is the same shape of harm as the `uflash` trap. The page reads the board's firmware first and says what it is about to do.
+
+**Two versions, and they move independently.** The flasher (HTML and JavaScript) and the device code are stamped separately, because a board flashed last month runs last month's code however often the site has been rebuilt since. The device stamp is a hash over the device files with the `RADIO_GROUP` line normalised, so it does not move when someone picks a different group -- the group is configuration, not code. Both appear in the page footer.
+
+**"Which version is this board running?" is answered by asking the board.** The page interrupts to the raw REPL and has MicroPython compute a digest over each of its own files, returning only the digests. That works on boards flashed by `make flash-*` too, and cannot drift, because nothing is written to the device to record it. The same digest therefore exists three times -- `build_site.device_digest`, `web/src/device.js`, and a MicroPython snippet held in a string literal in `web/src/serial.js`. All three are pinned by tests, the last against digests measured on real hardware.
+
+**The radio group is chosen in the browser**, so `radio_config.py` is served as a template with a `__GROUP__` placeholder -- the same idiom as `calibrate.LOGGER_SRC` -- and substituted at flash time. A test asserts that substituting the repo's own group reproduces `radio_config.py` byte for byte. Because the picker makes it easy to flash two boards onto different groups, and that failure is silent on the air, the page warns when the group changes between boards in a session.
+
+**Adding a device file is still three places.** `build_site.py` derives its manifest from `flash.ROLES`, so the web flasher does not become a fourth.
+
+#### Measured on hardware, 2026-09-06 (v2 boards, MicroPython 2.1.2, DAPLink 0257)
+
+| | |
+|---|---|
+| Full flash, board on different firmware | 22.7 s |
+| Partial flash, firmware already matching | 1.4-2.5 s |
+| Board version detection | first four characters of the USB serial: 9900/9901 = V1, 9903-9906 = V2, anything else throws |
+| Identify over the raw REPL | 20/20 consistent |
+| Filesystem | 20480 bytes; the hound uses 9856 |
+
+#### Gotchas particular to the browser
+
+1. **Serial is CMSIS-DAP, not CDC.** microbit-connection carries it over DAPLink vendor commands `0x83`/`0x84`. So the `Auto Reset: 1` behaviour in this section does not apply -- a browser connection never resets the board by opening a port, and the connection survives a flash.
+2. **Attach the `serialdata` listener before calling `flash()`.** The library only saturates DAPLink's CDC buffers when a listener already exists; without it the post-flash startup output is consumed by the CDC side and never seen. Silence that looks exactly like a healthy fox.
+3. **Serial writes cap at 255 bytes** -- a single length byte in the vendor command. 32-byte chunks with a 15 ms gap were lossless.
+4. **Leading output can be lost, not just stale.** One reply arrived with 28 characters missing from the front. Nothing is parsed positionally; every snippet prints a sentinel and the reply is sliced from it.
+5. **Ctrl-D inside the raw REPL means "execute"**, and is unrelated to Ctrl-D at the friendly prompt, which is the heap-corrupting soft reboot in gotcha 10. Likewise `softwareReset()` in microbit-connection is an SWD reset -- the clean kind. Both names are alarming and both are safe.
+6. **The command line can report "board busy" immediately after a browser flash.** It is contention while the page is still polling serial, and it clears on the next attempt. No unplugging is needed.
+7. **`backgrounderror` is noisy.** `No device opened` and `USB read failed` both appear around connect and disconnect without anything failing. Do not surface them as failures.
+8. **v1 boards are refused**, and the game is genuinely broken on them for two independent reasons: no speaker, and `radio.config(power=)` resets the group on v1 firmware, which `fox.py` does three times a second. The `.hex` download path cannot check anything, so it is labelled V2-only -- see section 8.
+9. **WebUSB is Chrome and Edge only.** No Firefox, no Safari, nothing at all on iOS or iPadOS. The device picker cannot be automated, so browser testing needs a human to click.
+
 ## 6. Design decisions worth preserving
 
 ### Zone hold, not latch-and-reset
@@ -228,6 +268,21 @@ The same shape of bug hit the display: `BAR_COUNT` meant both "how many bars" an
 * ~~**Z3 may be too weak indoors.**~~ Resolved 2026-09-06: outdoors Z3 delivered 74/75 packets at 3 m, so it does not need more transmit power. It is gone by 8 m, which is the intended behaviour for a danger zone.
 
 * **Is the NeoPixel clear-after-beep needed at all?** Removed on 2026-09-06; the boot blank stays, so the hound now calls `show()` exactly once, before any tone can interrupt it. Two of the three questions here are already answered: the clear was added against a mechanism that turned out to be wrong (gotcha 3), and *not constructing the `NeoPixel` object* is **not** a route to stealth — the calibration logger did exactly that and a pixel stayed lit, because an unclaimed `pin0` leaves the strip holding its power-on state. What is still untested is the removal itself: with a strip attached, play tones for a few minutes and confirm no pixel lights. The logger's own blank has at least been shown to boot cleanly on hardware (2026-09-06, `calibrate.py --flash` with the `CAL_READY` check).
+
+* **Gotcha 6 may be wrong about `uflash`.** Measured once, 2026-09-06: running `uflash` 2.0.0 against a v2 board installed MicroPython **2.0.0-beta.5** -- a genuine *v2* build (`os.uname().machine` still reported nRF52833), three releases old, which is what these boards shipped with. It did **not** install v1 firmware and did **not** disable the speaker. If that repeats on a second board, gotcha 6 and `describe_firmware`'s "Likely a uflash downgrade; reflash with a v2 hex" hint both need rewriting: the real harm is a silent move onto old firmware, which section 4 warns can invalidate the radio measurements. One data point is not enough to edit the gotcha, but it is enough to stop trusting it.
+
+### Web flasher: not yet settled
+
+Ten questions were closed by measurement while building it (see the table in section 5). These are what is left, and none of them can be answered from a desk. `WEB_FLASHER_PLAN.md` carries the detail.
+
+* **An interrupted flash.** The claim that it fails loudly rather than silently is still reasoning. Pull the cable mid-flash; recovery is one 23-second reflash.
+* **`make integration` under browser contention.** `make devices` recovers on retry; the fuller tool has not been tried, because it needs a fox and an integration board.
+* **A WebUSB-flashed hound against a `make flash-hound` one**, at a fixed distance, to confirm installing 2.1.2 has not moved the radio behaviour.
+* **A radio group other than 16.** The group is address matching rather than RF channel, so propagation should not change -- but the whole calibration was taken on 16 and the group picker is the headline feature.
+* **The service worker under the `github.io` project subpath.** Scope is `/microbit-foxhunt/`, not `/`. A classic way to ship something that works on `localhost` and not in production.
+* **A Chromebook**, probably the commonest deployment target and untested.
+* **Whether `fox.py` and `hound.py` should print a startup marker.** They print nothing when healthy, so the boot check can only be negative. The library is now known to capture startup output, so `print("FOX_READY")` would make it positive for one line each, invisible in the field.
+* **Whether the `.hex` download should be a universal hex** whose v1 slot scrolls `NEED V2`. That path cannot check the board, so today a v1 board flashed from a download simply looks dead. The cost is bundling the v1 image and a fourth device file.
 
 ### Acceptance tests not yet run
 
