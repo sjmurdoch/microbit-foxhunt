@@ -1,0 +1,96 @@
+/* Teaching materials: the lesson plan and the pupil worksheet.
+   Separate from app.css because these are document-shaped, not app-shaped, and
+   the thing that matters most about them is how they come out of a printer. */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #5a5a5a;
+  --rule: #cfcabf;
+  --paper: #fdfcfa;
+  --tint: #f2efe8;
+  --accent: #a8420a;
+  --box: #fbf6ea;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ece9e3; --muted: #a49f96; --rule: #3a3630;
+    --paper: #171613; --tint: #201e1a; --accent: #e2803f; --box: #241f16;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+  max-width: 48rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+
+h1 { font-size: 1.7rem; margin: 0 0 .3rem; line-height: 1.2; }
+h2 {
+  font-size: 1.2rem;
+  margin: 2rem 0 .5rem;
+  padding-bottom: .2rem;
+  border-bottom: 2px solid var(--rule);
+}
+h3 { font-size: 1rem; margin: 1.2rem 0 .3rem; }
+
+.subtitle { color: var(--muted); margin: 0 0 1.5rem; font-style: italic; }
+.nav { font-family: system-ui, sans-serif; font-size: .85rem; margin-bottom: 1.5rem; }
+.nav a { color: var(--accent); }
+
+table { border-collapse: collapse; width: 100%; margin: .8rem 0; font-size: .93rem; }
+th, td { text-align: left; padding: .45rem .6rem; border: 1px solid var(--rule); vertical-align: top; }
+th { background: var(--tint); font-family: system-ui, sans-serif; font-size: .82rem; }
+td.fill { height: 2.1rem; }
+
+.box {
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--accent);
+  background: var(--box);
+  padding: .8rem 1rem;
+  margin: 1rem 0;
+  border-radius: 0 .3rem .3rem 0;
+}
+.box h3 { margin-top: 0; }
+
+.timings td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; width: 5.5rem; }
+
+/* Space for pupils to write. Ruled lines print far better than empty boxes. */
+.write { border-bottom: 1px solid var(--rule); height: 1.9rem; margin: 0 0 .15rem; }
+.write.short { width: 60%; }
+
+ol, ul { padding-left: 1.4rem; }
+li { margin: .3rem 0; }
+
+.grid-svg { width: 100%; height: auto; max-width: 34rem; display: block; margin: .8rem 0; }
+.grid-svg .axis { stroke: var(--ink); stroke-width: 1.6; fill: none; }
+.grid-svg .fine { stroke: var(--rule); stroke-width: .6; }
+.grid-svg text { font: 11px system-ui, sans-serif; fill: var(--ink); }
+
+.tick { font-family: system-ui, sans-serif; font-size: .85rem; color: var(--muted); }
+.answer { color: var(--accent); font-family: system-ui, sans-serif; font-size: .9rem; }
+footer { margin-top: 3rem; padding-top: .8rem; border-top: 1px solid var(--rule);
+         color: var(--muted); font-size: .8rem; font-family: system-ui, sans-serif; }
+code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; }
+
+.page-break { break-before: page; }
+
+@media print {
+  /* Teachers print these. Everything here is about paper, not screens. */
+  @page { size: A4; margin: 15mm; }
+  body { max-width: none; padding: 0; background: #fff; color: #000; font-size: 11pt; }
+  .nav, .noprint { display: none !important; }
+  h2 { break-after: avoid; }
+  table, .box, .grid-svg { break-inside: avoid; }
+  tr { break-inside: avoid; }
+  a { color: #000; text-decoration: none; }
+  /* A worksheet full of printed URLs is a worksheet nobody wants. */
+  a[href^="http"]::after { content: ""; }
+  .box { background: #fff; border-left: 3px solid #000; }
+  th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

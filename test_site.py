@@ -11,6 +11,7 @@ device actually computes. Getting that wrong would make every board report as
 """
 import ast
 import hashlib
+import re
 import json
 import os
 
@@ -621,3 +622,174 @@ def test_monitor_zone_order_follows_the_manifest(tmp_path):
         tmp_path)
     assert got["current"] == ["Z1", "Z2", "Z3"]
     assert got["ever"] == ["Z1", "Z2", "Z3"]
+
+
+# --- the teaching materials -------------------------------------------------
+#
+# The lesson plan and worksheet quote real numbers -- the bar-graph scale, the
+# attenuator step, the outdoor calibration. Retyping those into HTML would
+# guarantee they were wrong after the next field trip, so they are substituted
+# at build time and checked here.
+
+TEACHING = ("lesson-plan.html", "worksheet.html")
+
+
+def render(name):
+    from build_site import apply, substitutions
+    return apply(open(os.path.join("web", name)).read(), substitutions(build_manifest()))
+
+
+@pytest.mark.parametrize("name", TEACHING)
+def test_teaching_pages_have_no_unsubstituted_placeholders(name):
+    """A worksheet that goes to a class reading __MIN_RSSI__ is worse than no
+    worksheet."""
+    leftover = re.findall(r"__[A-Z_]+__", render(name))
+    assert not leftover, sorted(set(leftover))
+
+
+@pytest.mark.parametrize("name", TEACHING)
+def test_teaching_pages_are_well_formed(name):
+    """They are printed and handed to children; an unclosed tag is not
+    acceptable. Checked with an HTML parser rather than an XML one: these are
+    HTML5, with a bare doctype and named entities that XML rejects."""
+    from html.parser import HTMLParser
+
+    void = {"area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr"}
+
+    class Balanced(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.stack = []
+            self.problems = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag not in void:
+                self.stack.append((tag, self.getpos()[0]))
+
+        def handle_endtag(self, tag):
+            if tag in void:
+                return
+            if not self.stack:
+                self.problems.append("</%s> with nothing open" % tag)
+            elif self.stack[-1][0] != tag:
+                self.problems.append(
+                    "</%s> at line %d closes <%s> opened at line %d"
+                    % (tag, self.getpos()[0], self.stack[-1][0], self.stack[-1][1]))
+                self.stack.pop()
+            else:
+                self.stack.pop()
+
+    parser = Balanced()
+    parser.feed(render(name))
+    assert not parser.problems, parser.problems
+    assert not parser.stack, ["<%s> at line %d never closed" % t for t in parser.stack]
+
+
+def test_worksheet_quotes_the_hounds_real_scale():
+    from build_site import hound_scale
+
+    scale = hound_scale()
+    page = render("worksheet.html")
+    assert ">%d</strong> bars" % scale["bars"] in page or "<strong>%d</strong>" % scale["bars"] in page
+    assert "press A up to __MAX__".replace("__MAX__", str(scale["max_presses"])) in page
+
+
+def test_lesson_plan_quotes_the_derived_attenuator_step():
+    """ATTEN_STEP is derived so that one press moves the display by exactly one
+    bar. The lesson plan explains it that way, so the two must agree."""
+    from build_site import hound_scale
+
+    scale = hound_scale()
+    assert scale["atten_step"] == scale["db_per_bar"], (
+        "one press of A must be exactly one bar, or the lesson plan is wrong")
+    page = render("lesson-plan.html")
+    assert "subtracts %d&nbsp;dB" % scale["atten_step"] in page
+    assert "about %d&nbsp;dB" % scale["db_per_bar"] in page
+
+
+def test_calibration_table_agrees_with_the_hounds_scale():
+    """MAX_RSSI is the strongest reading in the field calibration. MIN_RSSI is
+    deliberately *not* the weakest: the 15 m reading is a ground-reflection null
+    and only 21% of packets arrive there, so the hound uses the 20 m figure
+    instead (see hound_logic.py). Both facts are asserted, because the worksheet
+    asks pupils to explain that very anomaly."""
+    from build_site import CALIBRATION, hound_scale
+
+    scale = hound_scale()
+    readings = [rssi for _, rssi, _, _, _ in CALIBRATION]
+    assert max(readings) == scale["max_rssi"]
+    assert scale["min_rssi"] in readings
+    assert min(readings) < scale["min_rssi"], "the null should sit below the floor"
+
+
+def test_worksheet_challenge_data_is_the_measured_data():
+    from build_site import CALIBRATION, signed
+
+    page = render("worksheet.html")
+    for distance, rssi, _, _, _ in CALIBRATION:
+        assert "<td>%d m</td><td>%s dBm</td>" % (distance, signed(rssi)) in page
+
+
+def test_minus_signs_are_typographic_not_hyphens():
+    """The graph axes are labelled with U+2212; the table must match."""
+    page = render("worksheet.html")
+    assert "&minus;52 dBm" in page
+    assert "-52 dBm" not in page
+
+
+@pytest.mark.parametrize("statement", [
+    "recognise that light appears to travel in straight lines",
+    "recognise that sounds get fainter as the distance from the sound source increases",
+    "notice that light is reflected from surfaces",
+    "interpret and construct pie charts and line graphs and use these to solve problems",
+])
+def test_lesson_plan_quotes_the_curriculum_verbatim(statement):
+    """These are quoted from the 2014 programmes of study and were checked
+    against the published text. A paraphrase in a curriculum-mapping table is
+    worse than useless to a teacher completing planning paperwork."""
+    page = render("lesson-plan.html").replace("&ldquo;", "").replace("&rdquo;", "")
+    assert statement in page
+
+
+def test_teaching_pages_link_to_each_other_and_the_flasher():
+    for name in TEACHING:
+        page = render(name)
+        assert 'href="index.html"' in page
+        others = [n for n in TEACHING if n != name]
+        for other in others:
+            assert 'href="%s"' % other in page
+    assert 'href="lesson-plan.html"' in open("web/index.html").read()
+    assert 'href="worksheet.html"' in open("web/index.html").read()
+
+
+@pytest.mark.parametrize("name", TEACHING)
+def test_teaching_pages_are_printable(name):
+    """Teachers print these. The stylesheet must be attached and carry rules for
+    paper, or the worksheet arrives with navigation on it and tables split
+    across pages."""
+    assert 'href="teaching.css"' in render(name)
+    css = open(os.path.join("web", "teaching.css")).read()
+    assert "@media print" in css
+    assert "@page" in css
+    assert "break-inside: avoid" in css
+
+
+def test_worksheet_carries_the_player_guide():
+    """PLAYER_GUIDE.md was folded into the worksheet and deleted. A pupil handed
+    only this sheet must still know how to play and how to stay safe, so the
+    parts that used to live in that file are pinned here."""
+    page = render("worksheet.html")
+    for essential in ("Slow beep", "Medium beep", "Fast alarm",
+                      "button A", "button B",
+                      "Walk, do not run", "never swing it by the battery wire",
+                      "Stay inside the boundary"):
+        assert essential in page, essential
+    assert not os.path.exists("PLAYER_GUIDE.md"), (
+        "the worksheet subsumed it; two copies would drift")
+
+
+def test_lesson_plan_asks_for_feedback():
+    page = render("lesson-plan.html")
+    assert "s.murdoch@ucl.ac.uk" in page
+    assert "mailto:s.murdoch@ucl.ac.uk" in page

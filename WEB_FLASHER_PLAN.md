@@ -173,7 +173,7 @@ Minor, pre-existing: `hound_integration.py` never constructs a `NeoPixel`, so pe
 
 ### Organiser and player guidance
 
-Inline on the page, not a link away: pre-hunt checklist (fresh cells, both boards on the same group, fox display dark, range check, boundaries, time limit), the beep and button explanation from `PLAYER_GUIDE.md`, expected ranges from the field calibration (Z3 gone by 8 m, Z2 fringe at 8 m, Z1 out to 20 m and beyond), and a symptom-to-cause table.
+Inline on the page, not a link away: pre-hunt checklist (fresh cells, both boards on the same group, fox display dark, range check, boundaries, time limit), the beep and button explanation (since folded in from `PLAYER_GUIDE.md`, which is gone), expected ranges from the field calibration (Z3 gone by 8 m, Z2 fringe at 8 m, Z1 out to 20 m and beyond), and a symptom-to-cause table.
 
 That table must include **"display blank around 15 m while the audio keeps working is expected"** — it is the ground-reflection null against `MIN_RSSI`, documented in `hound_logic.py`, and it looks exactly like a fault.
 

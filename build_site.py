@@ -71,6 +71,25 @@ MONITOR_RX = "HOUND_RX"
 # listed again.
 DEVICE_FILES = sorted({src for files in ROLES.values() for src, _ in files})
 
+# The outdoor field calibration from AGENTS.md section 4, measured 2026-09-06
+# with calibrate.py: hound tethered to USB, fox carried out on a battery, 15 s
+# per point, figures are the Z1 median. The teaching worksheet plots these, so
+# they live here rather than being retyped into HTML -- and test_site.py checks
+# them against the hound's own scale, which was derived from them.
+#
+# (distance m, Z1 dBm, Z1 packets, Z2 packets, Z3 packets), out of 75.
+CALIBRATION = (
+    (1, -52, 75, 75, 74),
+    (3, -59, 75, 74, 74),
+    (8, -80, 74, 19, 0),
+    (15, -89, 16, 0, 0),
+    (20, -87, 56, 0, 0),
+)
+
+# Document-shaped pages that accompany the flasher. Same substitutions as
+# index.html, so every number a teacher reads comes from the code.
+TEACHING_PAGES = ("lesson-plan.html", "worksheet.html")
+
 ROLE_LABELS = {
     "fox": "Fox",
     "hound": "Hound",
@@ -248,6 +267,70 @@ def build_manifest(sources=None):
     }
 
 
+def hound_scale():
+    """The bar-graph scale the worksheet explains, taken from the hound.
+
+    Retyping -87 or "7 dB per bar" into a lesson would guarantee it was wrong
+    after the next field trip. ATTEN_STEP in particular is derived, not chosen:
+    one press of button A must move the display by exactly one bar.
+    """
+    import hound_logic
+    return {
+        "min_rssi": hound_logic.MIN_RSSI,
+        "max_rssi": hound_logic.MAX_RSSI,
+        "span": hound_logic.RSSI_SPAN,
+        "bars": hound_logic.BAR_COUNT,
+        "db_per_bar": hound_logic.RSSI_SPAN // hound_logic.BAR_COUNT,
+        "atten_step": hound_logic.ATTEN_STEP,
+        "max_presses": hound_logic.MAX_ATTENUATION // hound_logic.ATTEN_STEP,
+    }
+
+
+def signed(value):
+    """A real minus sign, not a hyphen.
+
+    These pages are read by ten-year-olds meeting negative numbers, and the
+    worksheet's graph axis is already labelled with U+2212. Mixing the two
+    within one page is the kind of detail a teacher notices.
+    """
+    return ("&minus;%d" % -value) if value < 0 else str(value)
+
+
+def calibration_rows():
+    """The measured table as HTML rows, for the worksheet's data-handling task."""
+    return "\n".join(
+        "<tr><td>%d m</td><td>%s dBm</td><td>%d/75</td><td>%d/75</td><td>%d/75</td></tr>"
+        % (distance, signed(rssi), z1, z2, z3)
+        for distance, rssi, z1, z2, z3 in CALIBRATION)
+
+
+def substitutions(manifest):
+    """Everything the static pages need stamped into them."""
+    scale = hound_scale()
+    return {
+        "__SITE_SHORT__": manifest["site"]["short"],
+        "__SITE_DATE__": manifest["site"]["date"],
+        "__DEVICE_VERSION__": manifest["device"]["version"],
+        "__DEVICE_SHORT__": manifest["device"]["short"],
+        "__DEVICE_DATE__": manifest["device"]["date"],
+        "__MIN_RSSI__": signed(scale["min_rssi"]),
+        "__MAX_RSSI__": signed(scale["max_rssi"]),
+        "__BAR_COUNT__": str(scale["bars"]),
+        "__DB_PER_BAR__": str(scale["db_per_bar"]),
+        "__ATTEN_STEP__": str(scale["atten_step"]),
+        "__MAX_PRESSES__": str(scale["max_presses"]),
+        "__RSSI_SPAN__": str(scale["span"]),
+        "__CALIBRATION_ROWS__": calibration_rows(),
+        "__GROUP_DEFAULT__": str(default_group()),
+    }
+
+
+def apply(text, values):
+    for token, value in values.items():
+        text = text.replace(token, value)
+    return text
+
+
 def default_group():
     from radio_config import RADIO_GROUP
     return RADIO_GROUP
@@ -347,17 +430,18 @@ def build(out=DEFAULT_OUT, run_bundle=True):
 
     write(os.path.join(out, "manifest.json"), json.dumps(manifest, indent=1) + "\n")
 
+    values = substitutions(manifest)
     script = bundle(out, stamp) if run_bundle else "app.js"
-    page = open(os.path.join(WEB, "index.html")).read()
-    page = page.replace("__SCRIPT__", script)
-    page = page.replace("__SITE_SHORT__", manifest["site"]["short"])
-    page = page.replace("__SITE_DATE__", manifest["site"]["date"])
-    page = page.replace("__DEVICE_VERSION__", manifest["device"]["version"])
-    page = page.replace("__DEVICE_SHORT__", manifest["device"]["short"])
-    page = page.replace("__DEVICE_DATE__", manifest["device"]["date"])
-    write(os.path.join(out, "index.html"), page)
 
-    shutil.copyfile(os.path.join(WEB, "app.css"), os.path.join(out, "app.css"))
+    page = apply(open(os.path.join(WEB, "index.html")).read(), values)
+    write(os.path.join(out, "index.html"), page.replace("__SCRIPT__", script))
+
+    for name in TEACHING_PAGES:
+        write(os.path.join(out, name),
+              apply(open(os.path.join(WEB, name)).read(), values))
+
+    for name in ("app.css", "teaching.css"):
+        shutil.copyfile(os.path.join(WEB, name), os.path.join(out, name))
 
     sw = open(os.path.join(WEB, "src", "sw.js")).read().replace("__STAMP__", stamp)
     write(os.path.join(out, "sw.js"), sw)

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fox Hunt &mdash; lesson plan</title>
+<link rel="stylesheet" href="teaching.css">
+</head>
+<body>
+
+<p class="nav noprint"><a href="index.html">&larr; Fox Hunt flasher</a> &middot; <a href="worksheet.html">Pupil worksheet</a></p>
+
+<h1>Radio Fox Hunt: how signals fade, bounce and get blocked</h1>
+<p class="subtitle">Teacher's lesson plan &middot; Upper Key Stage 2 (Years 5&ndash;6) &middot; 90 minutes, or two 45-minute sessions</p>
+
+<div class="box">
+  <h3>The big idea</h3>
+  <p>Radio waves behave like a light you cannot see. They get weaker the further you go from the source, they are absorbed by solid objects, and they bounce off surfaces. Pupils track a hidden transmitter using a hand-held receiver, and in doing so measure a signal fading with distance and discover that their instrument stops being useful when it is <em>saturated</em> &mdash; a problem they solve by deliberately making it less sensitive.</p>
+</div>
+
+<h2>Curriculum links</h2>
+
+<p>Statements quoted from the national curriculum programmes of study for England (2014).</p>
+
+<table>
+  <thead><tr><th>Subject</th><th>Statutory statement</th><th>Where it happens</th></tr></thead>
+  <tbody>
+    <tr><td>Science &mdash; working scientifically, upper KS2</td><td>&ldquo;taking measurements, using a range of scientific equipment, with increasing accuracy and precision, taking repeat readings when appropriate&rdquo;</td><td>Activity 2</td></tr>
+    <tr><td>Science &mdash; working scientifically, upper KS2</td><td>&ldquo;recording data and results of increasing complexity using scientific diagrams and labels &hellip; tables, scatter graphs, bar and line graphs&rdquo;</td><td>Activity 2, plenary</td></tr>
+    <tr><td>Science &mdash; working scientifically, upper KS2</td><td>&ldquo;planning different types of scientific enquiries to answer questions, including recognising and controlling variables where necessary&rdquo;</td><td>Activity 3</td></tr>
+    <tr><td>Science &mdash; working scientifically, upper KS2</td><td>&ldquo;reporting and presenting findings from enquiries, including conclusions, causal relationships and explanations of and a degree of trust in results&rdquo;</td><td>Plenary</td></tr>
+    <tr><td>Science &mdash; Year 6, light</td><td>&ldquo;recognise that light appears to travel in straight lines&rdquo;</td><td>Activity 1, Activity 3</td></tr>
+    <tr><td>Science &mdash; Year 3, light <span class="tick">(revisited)</span></td><td>&ldquo;notice that light is reflected from surfaces&rdquo;; &ldquo;recognise that shadows are formed when the light from a light source is blocked by an opaque object&rdquo;</td><td>Activity 3</td></tr>
+    <tr><td>Science &mdash; Year 4, sound <span class="tick">(prior learning)</span></td><td>&ldquo;recognise that sounds get fainter as the distance from the sound source increases&rdquo;</td><td>Starter</td></tr>
+    <tr><td>Maths &mdash; Year 6, statistics</td><td>&ldquo;interpret and construct pie charts and line graphs and use these to solve problems&rdquo;</td><td>Activity 2, extension</td></tr>
+    <tr><td>Maths &mdash; Year 5, statistics</td><td>&ldquo;solve comparison, sum and difference problems using information presented in a line graph&rdquo;</td><td>Extension</td></tr>
+    <tr><td>Computing &mdash; KS2</td><td>&ldquo;understand computer networks, including the internet; how they can provide multiple services &hellip; and the opportunities they offer for communication and collaboration&rdquo;</td><td>Activity 1 discussion</td></tr>
+    <tr><td>Computing &mdash; KS2</td><td>&ldquo;select, use and combine a variety of software &hellip; including collecting, analysing, evaluating and presenting data and information&rdquo;</td><td>Activity 2</td></tr>
+  </tbody>
+</table>
+
+<h2>Learning objectives</h2>
+<p>By the end of the lesson, pupils can:</p>
+<ol>
+  <li>explain that a radio signal gets weaker as the distance from the transmitter increases, and support that with their own measurements;</li>
+  <li>describe how solid objects &mdash; including a human body &mdash; can block or reflect a radio signal, and use that to work out a direction;</li>
+  <li>explain why a measuring instrument that is reading its maximum is no longer useful, and how reducing its sensitivity restores it.</li>
+</ol>
+
+<h2>Success criteria (pupil-facing)</h2>
+<ul>
+  <li>I can record a measurement carefully at each distance.</li>
+  <li>I can draw a line graph of signal strength against distance, and describe its shape.</li>
+  <li>I can explain what happens to the signal when I stand between the receiver and the transmitter.</li>
+  <li>I can explain why pressing button A helps when the screen is full.</li>
+</ul>
+
+<h2>Key vocabulary</h2>
+<p><strong>transmitter</strong> &middot; <strong>receiver</strong> &middot; <strong>signal strength</strong> &middot; <strong>absorb</strong> &middot; <strong>reflect</strong> &middot; <strong>saturated</strong> &middot; <strong>attenuate</strong> (to make weaker on purpose) &middot; <strong>variable</strong> &middot; <strong>reliable</strong></p>
+
+<div class="box">
+  <h3>Subject knowledge for the teacher</h3>
+  <p>Radio waves and light are the same kind of thing &mdash; electromagnetic waves &mdash; differing only in wavelength. The micro:bit transmits at 2.4&nbsp;GHz, a wavelength of about 12&nbsp;cm. That is why the whole lesson can lean on what pupils already know about light and sound.</p>
+  <p><strong>Fading with distance.</strong> The signal spreads out over an ever-larger area, so less of it reaches the receiver. Outdoors this project measured <strong>__MAX_RSSI__&nbsp;dBm at 1&nbsp;m</strong> falling to about <strong>__MIN_RSSI__&nbsp;dBm at 20&nbsp;m</strong>. Note that it does <em>not</em> fade evenly: most of the drop happens between 3&nbsp;m and 8&nbsp;m.</p>
+  <p><strong>Absorption.</strong> A human body is mostly water, which absorbs 2.4&nbsp;GHz strongly. Standing between the receiver and the transmitter produces a noticeable dip &mdash; the basis of Activity&nbsp;3.</p>
+  <p><strong>Reflection.</strong> Radio waves bounce off the ground, walls and metal fences. Reflected waves can arrive slightly later than the direct wave and partly cancel it. In this project's own field data the signal at 15&nbsp;m was <em>weaker</em> than at 20&nbsp;m for exactly this reason. This is a genuine, honest complication &mdash; not a mistake &mdash; and it is worth showing to pupils rather than hiding.</p>
+  <p><strong>Saturation.</strong> The display has only __BAR_COUNT__ bars covering a __RSSI_SPAN__&nbsp;dB range, so each bar is about __DB_PER_BAR__&nbsp;dB. Close to the fox the signal is stronger than the top of that range, so all __BAR_COUNT__ bars light and stay lit however much closer you walk. The instrument has run out of room. Pressing <strong>button&nbsp;A</strong> subtracts __ATTEN_STEP__&nbsp;dB &mdash; exactly one bar &mdash; shifting the whole scale so the bars mean something again. Button&nbsp;B resets it. Up to __MAX_PRESSES__ presses are available.</p>
+</div>
+
+<h2>Resources and preparation</h2>
+<ul>
+  <li><strong>Two or more micro:bit V2 boards</strong> with battery packs &mdash; one Fox, and one Hound per group. Any number of Hounds can hunt the same Fox.</li>
+  <li>A computer running <strong>Chrome or Edge</strong> and a USB data cable, to prepare the boards from <a href="index.html">the flasher page</a>. Charge-only cables will not work.</li>
+  <li>Trundle wheel or 20&nbsp;m tape; cones or chalk to mark 1, 3, 5, 8, 12, 16 and 20&nbsp;m.</li>
+  <li>Clipboards, the pupil worksheet, pencils.</li>
+  <li>An open outdoor space at least 25&nbsp;m across, with a wall or building on one side.</li>
+</ul>
+
+<h3>Before the lesson</h3>
+<ol>
+  <li>Open the flasher, choose a <strong>radio group</strong> (the default is __GROUP_DEFAULT__) and flash one board as <strong>Fox</strong> and the rest as <strong>Hound</strong>. <em>Every board in one game must use the same group number.</em> If two classes are out at once, give each class its own group, or their Hounds will chase the wrong Fox.</li>
+  <li>Write the group number on a sticker on each board. A mismatch is completely silent &mdash; the Hound simply never hears anything &mdash; so it is the first thing to check if a group is stuck.</li>
+  <li>Test the range yourself: walk 20&nbsp;m from the Fox and confirm the Hound still beeps.</li>
+  <li>Fresh or fully charged cells throughout. The Fox has no display, so a flat Fox and a hidden Fox look identical.</li>
+</ol>
+
+<div class="box noprint">
+  <h3>Safety and site management</h3>
+  <ul>
+    <li>Pupils walk, never run &mdash; they will be watching a screen rather than where they are going.</li>
+    <li>Set and walk the boundaries before starting. Keep the Fox away from roads, water and car parks.</li>
+    <li>Boards are bare circuit boards: hold them, keep them dry, never swing them by the battery wire.</li>
+    <li>Agree a recall signal and a finish time.</li>
+  </ul>
+</div>
+
+<h2>Lesson sequence</h2>
+
+<table class="timings">
+  <thead><tr><th>Time</th><th>Activity</th></tr></thead>
+  <tbody>
+    <tr><td>10 min</td><td><strong>Starter &mdash; what do we already know fades?</strong> Ask a pupil to speak from across the room, then from the doorway. Draw out Year 4's &ldquo;sounds get fainter as the distance from the sound source increases&rdquo;. Repeat the thinking with a torch. Establish the analogy that carries the whole lesson: <em>a radio signal is like a light you cannot see</em>. Ask for predictions: will the signal fade evenly, or fast at first and then slowly?</td></tr>
+    <tr><td>10 min</td><td><strong>Activity 1 &mdash; meet the equipment.</strong> Show the Fox: it transmits three separate beacons, loud, medium and quiet, and its display stays dark so it can hide. Show the Hound: beeps tell you roughly how close you are (slow, medium, fast alarm), bars show signal strength. Link to computing: this is a small radio <em>network</em>, and the two boards must agree on a group number to talk at all &mdash; an address, like a house number.</td></tr>
+    <tr><td>25 min</td><td><strong>Activity 2 &mdash; how does the signal fade with distance?</strong> <em>Worksheet part 1.</em> Place the Fox at a marked point. In groups, pupils walk to each marked distance in turn and record the number of bars and the beep speed. Insist on repeat readings: the signal wobbles, so take three at each distance and use the middle value. Groups plot bars against distance as a line graph.</td></tr>
+    <tr><td>20 min</td><td><strong>Activity 3 &mdash; blocking and bouncing.</strong> <em>Worksheet part 2.</em> Two fair tests, one variable each. (a) <strong>Blocking:</strong> stand still and turn slowly on the spot, watching the bars. The reading dips when your own body is between the Hound and the Fox &mdash; so the Fox is <em>behind</em> you. (b) <strong>Reflecting:</strong> take a reading in the open at 8&nbsp;m, then at 8&nbsp;m with a wall close behind you. Discuss why the second reading may be <em>stronger</em>.</td></tr>
+    <tr><td>15 min</td><td><strong>Activity 4 &mdash; the problem of a full screen.</strong> <em>Worksheet part 3.</em> Send groups to within about 2&nbsp;m of the Fox. All __BAR_COUNT__ bars light. Ask them to step 1&nbsp;m closer: nothing changes. Pose the problem: <em>how can you find the exact spot if the meter cannot tell 2&nbsp;m from 1&nbsp;m?</em> Take suggestions, then introduce button A. Each press makes the Hound __ATTEN_STEP__&nbsp;dB less sensitive &mdash; exactly one bar &mdash; so the bars drop and start responding again. Analogy: sunglasses on a bright day, or turning down a radio that is distorting.</td></tr>
+    <tr><td>10 min</td><td><strong>Plenary.</strong> <em>Worksheet part 4.</em> Share graphs. Was the fade even? Which measurement did pupils trust least, and why? Return to the three objectives. Reveal the project's own field data (extension) and ask why 15&nbsp;m came out weaker than 20&nbsp;m.</td></tr>
+  </tbody>
+</table>
+
+<h2>Differentiation</h2>
+<ul>
+  <li><strong>Support:</strong> pre-drawn axes on the worksheet; pair a recorder with a walker; use beep speed (three categories) instead of bar count where fine reading is difficult.</li>
+  <li><strong>Core:</strong> as described, with three repeat readings per distance.</li>
+  <li><strong>Challenge:</strong> the extension task uses the project's real measured data. Ask pupils to calculate the mean of their repeats (Year 6 statistics), and to explain the 15&nbsp;m anomaly using reflection.</li>
+</ul>
+
+<h2>Assessment opportunities</h2>
+<ul>
+  <li><strong>Observation:</strong> are pupils controlling variables &mdash; same person holding the Hound, same height, same orientation?</li>
+  <li><strong>Worksheet part 2:</strong> can they distinguish <em>blocked</em> from <em>reflected</em>?</li>
+  <li><strong>Worksheet part 3:</strong> the key question. A secure answer explains that the meter has run out of range, not that the signal has changed.</li>
+  <li><strong>Worksheet part 4:</strong> is the conclusion supported by their own data rather than by what they expected?</li>
+</ul>
+
+<h2>Common misconceptions</h2>
+<table>
+  <thead><tr><th>Misconception</th><th>How to address it</th></tr></thead>
+  <tbody>
+    <tr><td>&ldquo;The signal stops at a certain distance.&rdquo;</td><td>It gets weaker and weaker until the receiver can no longer pick it out. Nothing switches off. The three beacons vanish at different distances precisely because they start at different strengths.</td></tr>
+    <tr><td>&ldquo;All five bars means I am right on top of it.&rdquo;</td><td>It means <em>at least</em> as strong as the top of the scale. This is the saturation idea, and Activity 4 exists to break it.</td></tr>
+    <tr><td>&ldquo;Pressing A makes the signal weaker.&rdquo;</td><td>It changes the <em>meter</em>, not the signal. Compare with sunglasses: the sun does not dim.</td></tr>
+    <tr><td>&ldquo;The reading went up, so I must be closer.&rdquo;</td><td>Not necessarily &mdash; a reflection off a wall can raise it. Move and take another reading.</td></tr>
+    <tr><td>&ldquo;The Hound points at the Fox.&rdquo;</td><td>It cannot. The aerial receives from every direction equally, which is why body-blocking is the only way to get a direction.</td></tr>
+  </tbody>
+</table>
+
+<h2>Answers and expected results</h2>
+<div class="box">
+  <p><strong>Part 1.</strong> Bars fall as distance increases, but not evenly &mdash; readings hold up over the first few metres and then drop away quickly. Expect the display to blank while the sound continues at longer range; the sound is the coarse instrument and the bars the fine one. Readings wobble by about a bar even standing still, which is why repeats matter.</p>
+  <p><strong>Part 2a.</strong> The reading dips when the pupil's body is between Hound and Fox, because a body absorbs the signal. The dip points <em>away</em> from the Fox.</p>
+  <p><strong>Part 2b.</strong> Near a wall the reading is often stronger, because a reflected wave arrives as well as the direct one. Some positions may be weaker if the two partly cancel &mdash; both answers are correct and both are evidence of reflection.</p>
+  <p><strong>Part 3.</strong> All __BAR_COUNT__ bars light because the signal is above the top of the meter's range; the meter cannot show &ldquo;more than maximum&rdquo;. Pressing A subtracts __ATTEN_STEP__&nbsp;dB, moving the whole scale so differences show up again. It changes the instrument, not the signal.</p>
+  <p><strong>Extension.</strong> 15&nbsp;m reads weaker than 20&nbsp;m because waves reflected off the ground arrive out of step with the direct wave and partly cancel it at that distance. It is a real effect that this project measured and could not explain away &mdash; a good moment to discuss trusting data that looks wrong.</p>
+</div>
+
+<h2>Feedback</h2>
+<div class="box">
+  <p>If you run this with a class, I would be very grateful to hear how it went &mdash; what worked, what did not, what you had to change, and anything the pupils said that surprised you. It is the only way these materials improve.</p>
+  <p>Steven Murdoch &mdash; <a href="mailto:s.murdoch@ucl.ac.uk">s.murdoch@ucl.ac.uk</a></p>
+</div>
+
+<footer>
+  <p>Fox Hunt teaching materials &middot; flasher <code>__SITE_SHORT__</code> &middot; device code <code>__DEVICE_VERSION__</code>.
+  Measurements quoted here were taken outdoors on 2026-09-06 with the project's own calibration tool.</p>
+</footer>
+
+</body>
+</html>
