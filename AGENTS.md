@@ -44,10 +44,10 @@ The `HoundController` class: a pure-Python state machine with no `microbit` impo
 * **Outputs**: `get_beep_to_play`, `get_display_bars`.
 
 ### `hound.py` (hardware integration)
-The receiver's main loop. It imports `HoundController` from `hound_logic` — **the logic is not duplicated here, so both files must be flashed** (section 5). It maps buttons, the radio queue and the system clock onto the state machine, drains the entire `radio.receive_full()` queue every tick, plays tones asynchronously, and drives the LED matrix by overwriting pixel brightness.
+The receiver's main loop. It imports `HoundController` from `hound_logic` — **the logic is not duplicated here, so both files must be flashed** (section 5). It maps buttons, the radio queue and the system clock onto the state machine, drains the entire `radio.receive_full()` queue every tick, plays tones asynchronously, and drives the LED matrix by overwriting pixel brightness. The matrix size is its own constant, `MATRIX_SIZE`: `BAR_COUNT` is a tunable the calibration can change, and it must not also mean "5 columns".
 
 ### Tests
-`test_hound.py` is the unit suite (`pytest`). `integration_check.py` and `calibrate.py` are **hardware tools, not tests** — they need boards attached and are run by hand. `pyproject.toml` restricts collection to `test_hound.py` so they can never be imported during a test run.
+`test_hound.py` and `test_flash.py` are the unit suites (`pytest`). `integration_check.py` and `calibrate.py` are **hardware tools, not tests** — they need boards attached and are run by hand, so `testpaths` in `pyproject.toml` names only the two test files and neither tool is ever collected. Importing one *from* a test is fine, and `test_hound.py` does: both define constants at import time and open a port only from `main()`. That is how `calibrate.LOGGER_SRC` gets parsed — it is device MicroPython held in a string literal, so `compileall` cannot see it and a typo in there would otherwise flash cleanly and fail in a field.
 
 ## 4. Measured radio characteristics
 
@@ -95,7 +95,7 @@ This is where `MIN_RSSI = -87` and `MAX_RSSI = -52` come from.
 
 **20 m reads stronger than 15 m** — in RSSI and in packet delivery (56/75 against 16/75), so it is not RSSI noise. This is almost certainly a two-ray ground-reflection null: at λ = 12.5 cm the first null falls at 2·h₁·h₂/λ, which is 16 m with both units about a metre off the ground, and the signal then climbs back toward the next lobe near 32 m. Consequences:
 
-* The far end of the scale is a null, not a range limit. `calibrate.py` used to assume the furthest point was the weakest and would silently take the wrong floor; it now takes the true minimum and warns when the two differ.
+* The far end of the scale is a null, not a range limit. `calibrate.py` used to assume the furthest point was the weakest and would silently take the wrong floor; it now takes the true minimum and warns when the two differ. It made the mirror-image assumption at the near end until 2026-09-06 — `MAX_RSSI` came off the nearest distance — which a constructive lobe breaks in exactly the same way, so both ends now come from `min`/`max` over the readings. `recommend()` is a pure function for this reason, and is tested against the table above.
 * Around 15 m the display blanks, because −89 is just below `MIN_RSSI`, while the Z1 audio keeps working. That is a deliberate trade — see the comment in `hound_logic.py`.
 * Outdoor propagation is **not** the clean exponent 2.0 that the indoor section hoped for. Between consecutive points it is 1.47 (1→3 m), 4.93 (3→8 m), 3.30 (8→15 m) and −1.60 (15→20 m). The n≈4 stretch is the two-ray regime past the breakpoint, not an anomaly. What did improve is monotonicity: the curve rises steadily from 1 m to 15 m, with none of the indoor flat spot.
 * 1→3 m is only 7 dB, one bar across the first three metres. Close-in tracking rests on the attenuator and body shielding (gotcha 9), not on the bar graph.
@@ -119,6 +119,7 @@ make devices        # list attached micro:bits and their serial ports
 make flash-hound    # flash the hound (both its files)
 make flash-fox      # flash the fox
 make flash FOX_PORT=<port> HOUND_PORT=<port>    # both boards at once
+make flash-integration   # the print-only hound, for `make integration`
 ```
 
 Flashing targets depend on `check`, so code that fails its tests never reaches a board.
@@ -144,7 +145,9 @@ To update firmware, drag a `micropython-microbit-v2.X.Y.hex` onto the `MICROBIT`
 
 `ufs put` can report success while leaving a **different file on the device**. Observed here: `main.py` written as `36b3f2c0` read back as `98c4f8ff`, and the board then failed to boot with an `IndentationError` on a file that was perfectly valid on disk. The cause is the auto-reset below — the board reboots mid-transfer and starts executing a half-written `main.py`, which disrupts the rest of the copy.
 
-`flash.py` works around this, and `make flash-*` uses it: halt the running program, delete `main.py` so the board boots idle, copy each file, **verify it by hash**, write `main.py` last, then reset and check for a traceback. If you flash by hand instead, verify the result — do not trust a silent success.
+`flash.py` works around this, and `make flash-*` uses it: halt the running program, delete `main.py` so the board boots idle, copy each file, **verify it by hash**, write `main.py` last, then reset and check that the program is actually running. If you flash by hand instead, verify the result — do not trust a silent success.
+
+"Actually running" needs saying, because **the fox and the hound print nothing at all when they are working**, so an empty serial capture is what success looks like. `boot_check` therefore does three things rather than grep for `Traceback`: it resets the board and requires an answer, so a board that never rebooted cannot pass; it treats the MicroPython banner or a `>>>` prompt as failure, since those mean `main.py` is missing or has returned; and it takes an `expect=` marker for programs that do announce themselves — the calibration logger prints `CAL_READY`, and `calibrate.py --flash` checks for it. Adding a marker to a new device script is the cheapest way to make its flash verifiable.
 
 Both roles need `radio_config.py`, which holds the shared radio group. The hound additionally needs `hound_logic.py`. `main.py` is written last in each case:
 
@@ -152,6 +155,9 @@ Both roles need `radio_config.py`, which holds the shared radio group. The hound
 |------|--------------------|
 | Fox | `radio_config.py`, `fox.py` as `main.py` |
 | Hound | `radio_config.py`, `hound_logic.py`, `hound.py` as `main.py` |
+| Integration | `radio_config.py`, `hound_integration.py` as `main.py` |
+
+The integration role is a stripped hound that prints what it hears rather than beeping, so `integration_check.py` can watch the radio with nothing else in the way. It replaces the game on that board; `make flash-hound` puts it back.
 
 **Changing the radio group means reflashing both boards.** They will not hear each other otherwise, and the symptom is silent — the hound simply never receives anything and times out.
 
@@ -163,9 +169,15 @@ Both roles need `radio_config.py`, which holds the shared radio group. The hound
 * Anything typed into the REPL is lost as soon as the connection drops, so identification tricks like `display.scroll(...)` do not survive.
 * `ufs`/`microfs` operations are affected too; retry logic around raw-REPL entry is worth having in host-side scripts.
 
+**The auto-reset is not reliable enough to build a check on.** Measured 2026-09-06 on v2.1.2: the first open after another process had held the port left the board exactly where it was, sitting at the REPL, while every open after that in the same process did reset it. Three separate runs showed it. That is harmless for a transfer — `microfs` drives the board explicitly — but it quietly broke `boot_check`, which was asking a board that had never rebooted whether it had booted, and getting "no traceback, must be fine".
+
+So when you need a reset you can rely on, ask for one: Ctrl-C to the REPL and type `import microbit` / `microbit.reset()`. That is a real hardware reset, which gotcha 10 shows is the clean one, and it is deterministic — 4 of 4 where opening the port was 0 of 1. `flash.py`'s `_hard_reset` does exactly this, and everything up to the echo of the command is host chatter to be discarded, not board output.
+
 ### Two boards at once
 
 The `ufs` command-line tool always picks the first micro:bit it finds and cannot target a specific one. To drive two boards, open a `serial.Serial(port, 115200, timeout=1, parity="N")` yourself and pass it to `microfs.put/get/ls/execute(..., serial=...)`.
+
+Host-side scripts must not repeat that mistake. `flash.pick_port` prints both boards with their serial numbers and exits rather than guessing; every tool goes through it. Silently picking the first board is worse than failing, because opening the fox when you meant the hound looks exactly like being out of radio range, and that is a miserable thing to diagnose in a field.
 
 ## 6. Design decisions worth preserving
 
@@ -180,6 +192,12 @@ A residual remains at zone boundaries: a single stray packet from a closer beaco
 ### Attenuator step is derived, not hard-coded
 
 `ATTEN_STEP = RSSI_SPAN // BAR_COUNT`, so one press of button A always moves the bar graph by exactly one row. A hard-coded 5 dB step against 7 dB bars meant **4 of 8 presses produced no visible change on real hardware**. Deriving the step keeps the guarantee if the scale is recalibrated. Attenuation is also capped so the display cannot be pressed into a permanently dead state.
+
+### A measured constant may not carry a second meaning
+
+`MIN_RSSI` used to mean two things: the bottom of the bar graph, and "we have not heard anything yet". `process_packet` skipped the EMA whenever `current_rssi <= MIN_RSSI`, which was safe while `MIN_RSSI` was −105, below anything the radio can receive. The field calibration moved it to −87, which is what Z1 reads at 20 m — so the smoothing silently switched itself off across the far half of the operating range, precisely where the 7–8 dB stationary noise is worst. Replaying `[-84,-90,-88,-86,-91,-85,-89,-87]` through the old controller gave five of eight readings back raw. "We have not heard anything yet" is now its own flag, and there is a test.
+
+The same shape of bug hit the display: `BAR_COUNT` meant both "how many bars" and "how wide the matrix is". The general rule for this codebase is that **anything a calibration can change must not also encode a hardware fact or a program state**, because the next field trip will move it and nothing will complain.
 
 ## 7. Hardware quirks and gotchas
 
@@ -206,10 +224,10 @@ A residual remains at zone boundaries: a single stray packet from a closer beaco
 ## 8. Open items
 
 * ~~**`MIN_RSSI` / `MAX_RSSI` are not field-calibrated.**~~ Done 2026-09-06: the outdoor calibration above gives −87 / −52, and both ends now sit above the receiver floor. The remaining uncertainty is the 15 m null — worth re-measuring at a different antenna height to confirm it moves.
-* **`EMA_ALPHA` (0.8)** was tuned for a <300 ms response before the 7–8 dB stationary noise floor was known. Still open: the outdoor calibration does not settle it, because `calibrate.py` reports only a median per distance and never the spread. With 7 dB bars against 7–8 dB of noise, roughly a bar of jitter is expected while standing still.
+* **`EMA_ALPHA` (0.8)** was tuned for a <300 ms response before the 7–8 dB stationary noise floor was known. Still open: the outdoor calibration does not settle it, because `calibrate.py` reports only a median per distance and never the spread. With 7 dB bars against 7–8 dB of noise, roughly a bar of jitter is expected while standing still. Note that until 2026-09-06 the EMA was not running at all below −87 dBm (section 6), so any impression of far-range jitter formed before then was of unsmoothed readings and is worth forming again.
 * ~~**Z3 may be too weak indoors.**~~ Resolved 2026-09-06: outdoors Z3 delivered 74/75 packets at 3 m, so it does not need more transmit power. It is gone by 8 m, which is the intended behaviour for a danger zone.
 
-* **Is the NeoPixel clear-after-beep needed at all?** Removed on 2026-09-06; the boot blank stays, so the hound now calls `show()` exactly once, before any tone can interrupt it. Two of the three questions here are already answered: the clear was added against a mechanism that turned out to be wrong (gotcha 3), and *not constructing the `NeoPixel` object* is **not** a route to stealth — the calibration logger did exactly that and a pixel stayed lit, because an unclaimed `pin0` leaves the strip holding its power-on state. What is still untested is the removal itself: with a strip attached, play tones for a few minutes and confirm no pixel lights.
+* **Is the NeoPixel clear-after-beep needed at all?** Removed on 2026-09-06; the boot blank stays, so the hound now calls `show()` exactly once, before any tone can interrupt it. Two of the three questions here are already answered: the clear was added against a mechanism that turned out to be wrong (gotcha 3), and *not constructing the `NeoPixel` object* is **not** a route to stealth — the calibration logger did exactly that and a pixel stayed lit, because an unclaimed `pin0` leaves the strip holding its power-on state. What is still untested is the removal itself: with a strip attached, play tones for a few minutes and confirm no pixel lights. The logger's own blank has at least been shown to boot cleanly on hardware (2026-09-06, `calibrate.py --flash` with the `CAL_READY` check).
 
 ### Acceptance tests not yet run
 
@@ -219,9 +237,30 @@ Carried over from the original plan; none of these can be satisfied from a desk.
 * **Outdoor zone thresholds.** Partly done 2026-09-06. The calibration brackets them — Z3 is strong at 3 m and gone by 8 m; Z2 is at its fringe at 8 m (25% delivery) and gone by 15 m — but the crossings themselves were not walked. Sample 4, 5 and 6 m for the 3→2 boundary and 10 and 12 m for 2→1.
 * **Usability with a real player.** Hand the hound to a child who has not been briefed beyond "follow the sound, press A if the screen fills up" and confirm they can find the fox.
 
+## 9. Advice for future agents
+
+Distilled from what actually went wrong here, not from general principle.
+
+**A board is attached far more often than you assume, and using it is cheap.** Almost every wrong belief in this document's history — the P0 audio cross-talk claim, the soft-reboot "IndentationError", the sentinel bug, the unreliable auto-reset — survived because someone reasoned instead of measuring. `make devices` takes two seconds. If a claim can be settled on hardware, settle it there and write the numbers down, with the date and the firmware version.
+
+**Test device code on the device by lifting it out of the source, not by retyping it.** The bar-graph render was verified by reading the exact block out of `hound.py`, wrapping it in a loop over bar counts, flashing it, and reading all 25 pixels back with `display.get_pixel`. A transcription would have proved only that the transcription worked. `display.get_pixel` and a `print` are usually enough to turn "looks right" into a result you can paste into a commit message.
+
+**Never conclude anything from a board's silence.** The fox and the hound print nothing when they are healthy, so silence is simultaneously the success signal and the symptom of a board that is dead, absent a `main.py`, or was never reset. Force the question: reset explicitly, treat the REPL banner as failure, and give new device scripts a startup marker to check for.
+
+**Pull the pure part out of anything that needs hardware.** `hound_logic.py` exists so the state machine can be tested on a desktop; `record()` and `recommend()` were pulled out of `calibrate.py` for the same reason, after two bugs in them that could only have been found on a second trip to the playfield. If a function mixes arithmetic with a serial port, the arithmetic is untested.
+
+**A device file that is not in `flash.ROLES`, `DEVICE_SRC` and `DEVICE_FILES` does not exist.** `hound_integration.py` sat in the repo for months with no way to flash it, no parse check, and no exemption from the regression tests that every other device file passes — so `make integration` could not work and nothing said so. Adding a device file means adding it in all three places.
+
+**Two copies of a fact will drift.** The radio group, `BAR_COUNT`, the `CAL_READY` marker and the file lists are each defined once and imported. When you are tempted to write a constant down a second time, import it instead — and when you cite a measurement in both a docstring and this file, make the numbers match (they did not: `boot_check` said 0/8 where section 7 said 14 of 14).
+
+**Prose in this repository is not hard-wrapped.** One paragraph is one line; GitHub renders a single newline as `<br>`.
+
+**Before claiming anything is fixed, run `make check`.** It parses every source file and runs the suite. Flashing targets depend on it, so code that fails cannot reach a board — do not route around that.
+
 ## History
 
 `archive/` holds superseded working documents, kept for context rather than guidance:
 
 * `fox_hunt_plan.md` — the original design and implementation plan. Everything in it is either built, superseded by measurements in section 4, or carried into the sections above.
 * `FIX_PLAN.md` — the remediation plan for the 2026-09-05 code review and field test. All stages complete.
+* `FIX_PLAN_REVIEW.md` — the remediation plan for the 2026-09-06 whole-project review, which produced the sentinel fix, the matrix-size fix and the tooling work in sections 5 and 9. All fifteen findings addressed.
