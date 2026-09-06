@@ -1,0 +1,66 @@
+# Build the web flasher and publish it to GitHub Pages.
+#
+# The tests gate the deploy. That mirrors the rule the Makefile already applies
+# to every flashing target: code that fails its tests must not reach a board.
+# The web flasher is a flashing target, so it gets the same treatment.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it: a half-published site
+# is worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The device-code stamp is the last commit to touch a device file,
+          # which a shallow clone cannot find. Without this the site would be
+          # stamped with the wrong version, or the build would stop.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Tests
+        run: make check
+
+      - name: Build the site
+        run: make site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
