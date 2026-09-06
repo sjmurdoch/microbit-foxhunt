@@ -26,18 +26,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The device-code stamp is the last commit to touch a device file,
           # which a shallow clone cannot find. Without this the site would be
           # stamped with the wrong version, or the build would stop.
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v5
+      # v7 rather than the newest release: setup-uv publishes no floating major
+      # tag above v7, and v6 still runs on node20.
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -51,7 +53,9 @@ jobs:
       - name: Build the site
         run: make site
 
-      - uses: actions/upload-pages-artifact@v3
+      # v5 is the first that calls upload-artifact@v7; v4 still pinned v4.6.2,
+      # which is one of the node20 actions the deprecation warning named.
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
@@ -63,4 +67,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
