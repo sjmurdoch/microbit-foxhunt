@@ -17,13 +17,17 @@ import sys
 import time
 
 import serial
-import serial.tools.list_ports
 
+from flash import BAUD, boot_check, halt, pick_port, remove_main, verified_put
+from hound_logic import BAR_COUNT   # the scale below must match what the hound draws
 from radio_config import RADIO_GROUP
 
-BAUD = 115200
 RECEIVER_FLOOR = -95      # nRF52833 bottoms out near -96 dBm
-BAR_COUNT = 5
+
+# The logger announces itself with this, so flash_logger can make a positive
+# check rather than settling for "no traceback". Substituted into LOGGER_SRC so
+# the two cannot drift apart.
+READY = "CAL_READY"
 
 # Blank any attached ZIP LEDs first, exactly as fox.py and hound.py do. They
 # power on in a random state (AGENTS.md gotcha 4), and a script that never
@@ -37,7 +41,7 @@ np.clear()
 np.show()
 radio.on()
 radio.config(group=__GROUP__, queue=200, length=64)
-print("CAL_READY")
+print("__READY__")
 n = 0
 while True:
     p = radio.receive_full()
@@ -46,14 +50,7 @@ while True:
         n += 1
         display.set_pixel(2, 2, 9 if (n // 5) % 2 else 4)
     sleep(2)
-'''.replace("__GROUP__", str(RADIO_GROUP))  # not %-format: the body contains %r/%d
-
-
-def find_port():
-    for p in serial.tools.list_ports.comports():
-        if p.vid == 0x0D28 and p.pid == 0x0204:
-            return p.device
-    sys.exit("No micro:bit found on USB.")
+'''.replace("__GROUP__", str(RADIO_GROUP)).replace("__READY__", READY)  # not %-format: the body has %r/%d
 
 
 def flash_logger(port):
@@ -62,17 +59,20 @@ def flash_logger(port):
     A plain `microfs.put` can report success while leaving a different file on
     the device -- see the comment at the top of flash.py.
     """
-    from flash import boot_check, halt, remove_main, verified_put
-
     tmp = "_cal_logger.py"
     with open(tmp, "w") as fh:
         fh.write(LOGGER_SRC)
     try:
         halt(port)
-        remove_main(port)
+        if not remove_main(port):
+            print("  warning: could not confirm main.py is gone; the board may")
+            print("           still be running it.")
         if not verified_put(port, tmp, "main.py"):
             sys.exit("FAILED: could not write the logger reliably.")
-        if not boot_check(port):
+        # The logger announces itself, so this is a positive check rather than
+        # "no traceback in five seconds". Getting it wrong means walking out to
+        # the playfield with a dead board.
+        if not boot_check(port, expect=READY):
             sys.exit("FAILED: the logger does not start cleanly.")
     finally:
         if os.path.exists(tmp):
@@ -81,6 +81,25 @@ def flash_logger(port):
     print("Logger is on %s and running." % port)
     print("This REPLACED the hound's main.py. When you have finished")
     print("calibrating, restore the game with:  make flash-hound")
+
+
+def record(line, zones):
+    """Fold one logger line into the per-zone RSSI lists.
+
+    Split out from the serial plumbing because this is the one place an
+    unexpected packet can bring a whole calibration run down, and that is worth
+    a test.
+    """
+    m = re.match(r"R\|(.+)\|(-?\d+)$", line.strip())
+    if not m:
+        return
+    z = re.search(r"Z(\d)", m.group(1))
+    # The regex matches Z0 and Z4-Z9 as well. Other kit can be sitting on the
+    # radio group -- that is why the group is chosen the way it is -- and an
+    # unguarded dict lookup would raise out of sample(), past main()'s handler,
+    # and discard every distance already walked.
+    if z and int(z.group(1)) in zones:
+        zones[int(z.group(1))].append(int(m.group(2)))
 
 
 def sample(port, seconds):
@@ -99,25 +118,67 @@ def sample(port, seconds):
             buf += data
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
-                m = re.match(r"R\|(.+)\|(-?\d+)$", line.decode("utf-8", "replace").strip())
-                if not m:
-                    continue
-                z = re.search(r"Z(\d)", m.group(1))
-                if z:
-                    zones[int(z.group(1))].append(int(m.group(2)))
+                record(line.decode("utf-8", "replace"), zones)
     finally:
         s.close()
     return zones
 
 
+def recommend(readings):
+    """Turn (distance, rssi) samples into a bar-graph scale.
+
+    Returns a dict of the numbers to print, or None when the spread is too
+    small to drive the bars. Split out from the printing so the arithmetic can
+    be tested: the only other way to find out it is wrong is another trip to
+    the playfield.
+    """
+    readings = sorted(readings)
+    # Neither end of the scale may be read off the ends of the distance list.
+    # Multipath breaks that assumption in both directions: a ground-reflection
+    # null can leave a mid-range distance quieter than the far edge, and a
+    # constructive lobe can leave one louder than the nearest. Take the real
+    # extremes, or the scale is skewed by however far out the assumption was.
+    strongest_at, strongest = max(readings, key=lambda dr: dr[1])
+    weakest_at, weakest = min(readings, key=lambda dr: dr[1])
+
+    max_rssi = int(round(strongest))
+    min_rssi = max(int(round(weakest)), RECEIVER_FLOOR)
+
+    span = max_rssi - min_rssi
+    if span < BAR_COUNT:
+        return None
+
+    # Round the span to a whole number of bars so ATTEN_STEP divides exactly.
+    # Rounding up drops MIN_RSSI below the weakest reading, which can undo the
+    # receiver-floor clamp above, so round down in that case instead.
+    step = -(-span // BAR_COUNT)
+    if max_rssi - step * BAR_COUNT < RECEIVER_FLOOR:
+        step = span // BAR_COUNT
+
+    return {
+        "min_rssi": max_rssi - step * BAR_COUNT,
+        "max_rssi": max_rssi,
+        "step": step,
+        "span": span,
+        "nearest": readings[0][0],
+        "furthest": readings[-1][0],
+        "strongest_at": strongest_at,
+        "weakest_at": weakest_at,
+        "weakest": weakest,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--flash", action="store_true", help="write the logger to the hound and exit")
-    ap.add_argument("--port", help="serial port (default: autodetect)")
+    ap.add_argument("--port", help="serial port; required when two boards are attached")
     ap.add_argument("--seconds", type=float, default=15.0, help="sample time per distance")
     args = ap.parse_args()
 
-    port = args.port or find_port()
+    # pick_port refuses to guess between two attached boards. Opening the fox
+    # by mistake looks exactly like being out of range, which is a miserable
+    # thing to debug in a field.
+    port = pick_port(args.port)
     if args.flash:
         flash_logger(port)
         return 0
@@ -151,34 +212,29 @@ def main():
     for d, r in readings:
         print("  %6.1f m : %7.1f dBm" % (d, r))
 
-    nearest, strongest = readings[0]
-    furthest = readings[-1][0]
-    # The weakest signal is not always the furthest one: a ground-reflection
-    # null can leave a mid-range distance quieter than the far edge. Take the
-    # real minimum, or everything at the null reads below the bottom bar.
-    weakest_at, weakest = min(readings, key=lambda dr: dr[1])
-
-    max_rssi = int(round(strongest))
-    min_rssi = max(int(round(weakest)), RECEIVER_FLOOR)
-
-    span = max_rssi - min_rssi
-    if span < BAR_COUNT:
-        print("\nSignal range is only %d dB - too small to drive %d bars. "
-              "Sample a wider spread of distances." % (span, BAR_COUNT))
+    scale = recommend(readings)
+    if scale is None:
+        print("\nSignal range is too small to drive %d bars. "
+              "Sample a wider spread of distances." % BAR_COUNT)
         return 1
-
-    # Round the span to a whole number of bars so ATTEN_STEP divides exactly.
-    # Rounding up drops MIN_RSSI below the weakest reading, which can undo the
-    # receiver-floor clamp above, so round down in that case instead.
-    step = -(-span // BAR_COUNT)
-    if max_rssi - step * BAR_COUNT < RECEIVER_FLOOR:
-        step = span // BAR_COUNT
-    min_rssi = max_rssi - step * BAR_COUNT
+    min_rssi = scale["min_rssi"]
+    max_rssi = scale["max_rssi"]
+    step = scale["step"]
+    nearest = scale["nearest"]
+    furthest = scale["furthest"]
+    strongest_at = scale["strongest_at"]
+    weakest_at = scale["weakest_at"]
+    weakest = scale["weakest"]
 
     print("\n--- put these in hound_logic.py ---")
     print("MIN_RSSI = %d      # weakest signal, measured at %.1f m" % (min_rssi, weakest_at))
-    print("MAX_RSSI = %d      # saturates at %.1f m, where the attenuator takes over" % (max_rssi, nearest))
+    print("MAX_RSSI = %d      # saturates at %.1f m, where the attenuator takes over" % (max_rssi, strongest_at))
     print("\n(ATTEN_STEP derives from these automatically: %d dB = exactly one bar.)" % step)
+    if strongest_at != nearest:
+        print("\nNote: the strongest signal was at %.1f m, not at the near edge (%.1f m).\n"
+              "That is usually a constructive multipath lobe. Re-measure %.1f m with the\n"
+              "fox raised or lowered by half a metre; the peak should move."
+              % (strongest_at, nearest, strongest_at))
     if weakest_at != furthest:
         print("\nNote: the weakest signal was at %.1f m, not at the far edge (%.1f m). That\n"
               "is usually a ground-reflection null rather than a bad reading: at 2.4 GHz\n"

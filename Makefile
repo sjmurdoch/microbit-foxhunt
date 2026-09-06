@@ -10,7 +10,7 @@
 PY     ?= uv run python
 PYTEST ?= uv run pytest
 
-DEVICE_SRC := fox.py hound.py hound_logic.py radio_config.py
+DEVICE_SRC := fox.py hound.py hound_integration.py hound_logic.py radio_config.py
 HOST_SRC   := flash.py calibrate.py integration_check.py test_hound.py test_flash.py
 
 # Single-board targets accept PORT=; it is only required when two boards are
@@ -18,7 +18,7 @@ HOST_SRC   := flash.py calibrate.py integration_check.py test_hound.py test_flas
 PORT_ARG := $(if $(PORT),--port $(PORT),)
 
 .DEFAULT_GOAL := help
-.PHONY: help build test check devices flash flash-fox flash-hound calibrate calibrate-logger integration clean
+.PHONY: help build test check devices flash flash-fox flash-hound flash-integration calibrate calibrate-logger integration clean
 
 help: ## Show this help
 	@echo "Micro:bit Fox Hunt"
@@ -48,6 +48,9 @@ flash-fox: check ## Flash the fox (PORT= if two boards attached)
 flash-hound: check ## Flash the hound, both files (PORT= if two boards attached)
 	$(PY) flash.py hound $(PORT_ARG)
 
+flash-integration: check ## Flash the print-only hound used by 'make integration'
+	$(PY) flash.py integration $(PORT_ARG)
+
 flash: check ## Flash both boards; needs FOX_PORT and HOUND_PORT
 	@if [ -z "$(FOX_PORT)" ] || [ -z "$(HOUND_PORT)" ]; then \
 	  echo "Two boards cannot be told apart automatically."; \
@@ -64,7 +67,7 @@ calibrate-logger: ## Put the calibration logger on the hound (do this first)
 calibrate: ## Field-calibrate MIN_RSSI/MAX_RSSI outdoors (needs calibrate-logger first)
 	$(PY) calibrate.py $(PORT_ARG)
 
-integration: ## Radio round-trip check across two attached boards
+integration: ## Radio round-trip check (needs flash-fox and flash-integration)
 	$(PY) integration_check.py
 
 clean: ## Remove caches and scratch files

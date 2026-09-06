@@ -245,7 +245,13 @@ def test_zone_hold_is_pinned_to_the_signal_timeout():
 
 # --- device compatibility --------------------------------------------------
 
-DEVICE_FILES = ("fox.py", "hound.py", "hound_logic.py", "radio_config.py")
+DEVICE_FILES = (
+    "fox.py",
+    "hound.py",
+    "hound_integration.py",
+    "hound_logic.py",
+    "radio_config.py",
+)
 
 
 @pytest.mark.parametrize("filename", DEVICE_FILES)
@@ -262,6 +268,83 @@ def test_device_files_avoid_fstrings(filename):
     tree = ast.parse(open(filename).read())
     offenders = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.JoinedStr)]
     assert not offenders, "f-strings at lines %s" % offenders
+
+
+def test_calibration_logger_parses():
+    """LOGGER_SRC is device code held in a string literal, so neither
+    compileall nor the DEVICE_FILES checks above ever see it. A typo in there
+    flashes cleanly -- verified_put only compares hashes -- and surfaces
+    outdoors."""
+    import ast
+    import calibrate          # inert at import time; defines constants only
+
+    ast.parse(calibrate.LOGGER_SRC)
+    assert calibrate.READY in calibrate.LOGGER_SRC
+    assert "__GROUP__" not in calibrate.LOGGER_SRC, "group placeholder not substituted"
+
+
+def test_calibration_scale_matches_the_hound():
+    """Regression: calibrate.py kept its own BAR_COUNT, so it could recommend a
+    scale computed against a different number of bars than the hound draws."""
+    import calibrate
+
+    assert calibrate.BAR_COUNT is BAR_COUNT
+
+
+# --- calibration tool ------------------------------------------------------
+
+def test_calibration_ignores_unexpected_zone_tokens():
+    """Regression: the zone regex matches Z0 and Z4-Z9 as well, and the dict
+    lookup was unguarded. A single stray packet from other kit on the radio
+    group raised a KeyError out of sample() and discarded every distance
+    already walked."""
+    import calibrate
+
+    zones = {1: [], 2: [], 3: []}
+    for line in (r"R|b'\x01\x00\x01Z7'|-70",
+                 r"R|b'\x01\x00\x01Z0'|-70",
+                 "not a reading at all"):
+        calibrate.record(line, zones)
+    assert zones == {1: [], 2: [], 3: []}
+    calibrate.record(r"R|b'\x01\x00\x01Z1'|-52", zones)
+    assert zones[1] == [-52]
+
+
+def test_calibration_takes_the_real_extremes_not_the_end_distances():
+    """Regression: MAX_RSSI was read off the nearest distance and MIN_RSSI off
+    the furthest. Multipath breaks both assumptions -- the 2026-09-06 field run
+    measured -89 dBm at 15 m against -87 at 20 m, a ground-reflection null."""
+    import calibrate
+
+    field = [(1, -52.0), (3, -59.0), (8, -80.0), (15, -89.0), (20, -87.0)]
+    assert calibrate.recommend(field)["weakest_at"] == 15
+    lobe = [(1, -58.0), (3, -52.0), (8, -80.0), (15, -89.0), (20, -87.0)]
+    assert calibrate.recommend(lobe)["max_rssi"] == -52
+
+
+def test_calibration_never_drops_the_scale_below_the_receiver_floor():
+    """Rounding the span up to whole bars can push MIN_RSSI under the floor,
+    which is what made the original -105 bottom unreachable. Round down
+    instead."""
+    import calibrate
+
+    scale = calibrate.recommend([(1, -52.0), (30, -94.0)])
+    assert scale["min_rssi"] >= calibrate.RECEIVER_FLOOR
+
+
+def test_calibration_bars_divide_the_span_exactly():
+    """ATTEN_STEP is RSSI_SPAN // BAR_COUNT, so a span that does not divide
+    would make one press of button A move less than a full bar."""
+    import calibrate
+
+    scale = calibrate.recommend([(1, -52.0), (20, -87.0)])
+    assert scale["max_rssi"] - scale["min_rssi"] == scale["step"] * BAR_COUNT
+
+
+def test_calibration_refuses_a_spread_too_narrow_to_draw():
+    import calibrate
+
+    assert calibrate.recommend([(1, -52.0), (3, -53.0)]) is None
 
 
 def test_logic_module_imports_no_hardware():

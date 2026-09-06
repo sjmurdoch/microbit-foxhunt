@@ -12,8 +12,10 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-# Only collect real unit tests. Hardware helpers (integration_check.py,
-# calibrate.py) are run by hand and must never be imported at collection time.
-# flash.py is imported by test_flash.py, but only for its pure helpers.
+# Only collect real unit tests. The hardware helpers (integration_check.py,
+# calibrate.py) are run by hand and must never be collected as tests -- their
+# module-level code would then run against whatever board happens to be
+# attached. Importing one inside a test is fine: they define constants at
+# import time and touch a port only from main().
 testpaths = ["test_hound.py", "test_flash.py"]
 addopts = "-q"
