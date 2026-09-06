@@ -1069,3 +1069,87 @@ def test_printable_pages_offer_a_print_button(name):
     nav = page[page.index('class="nav'):page.index("</p>", page.index('class="nav'))]
     assert "data-print" in nav, "the print button must be inside the .noprint strip"
     assert "hidden" in page[page.index("data-print") - 80:page.index("data-print") + 40]
+
+
+# --- cognitive walkthrough fixes -------------------------------------------
+#
+# See COGNITIVE-WALKTHROUGHS.md. These pin the outcomes of the teacher
+# walkthrough so they are not quietly undone.
+
+def test_board_tally_counts_boards_not_flashes(tmp_path):
+    """A teacher setting up a class set needs to know how many boards are done.
+    Counting flashes would say two after someone flashed one board as Fox,
+    noticed, and reflashed it as Hound."""
+    flashed = [
+        {"serialNumber": "aaa", "role": "fox", "group": 16},
+        {"serialNumber": "bbb", "role": "hound", "group": 16},
+        {"serialNumber": "aaa", "role": "hound", "group": 16},   # corrected
+        {"serialNumber": None, "role": "hound", "group": 16},    # no serial
+        {"serialNumber": None, "role": "hound", "group": 16},    # another
+    ]
+    got = run_node(
+        "const t = device.tallyBoards(%s);\n"
+        "console.log(JSON.stringify({boards: t.boards, counts: t.counts}));"
+        % json.dumps(flashed),
+        tmp_path)
+    assert got == {"boards": 4, "counts": {"hound": 4}}, got
+
+
+def test_v1_refusal_speaks_to_a_teacher_not_a_developer():
+    """It used to name radio.config(power=), which means nothing to someone
+    holding a box of boards, and did not say what to look for instead."""
+    source = open(os.path.join("web", "src", "flasher.js")).read()
+    start = source.index('new BoardRefused(\n        "v1"')
+    message = source[start:start + 700]
+    assert "radio.config" not in message
+    assert "logo on the front is gold" in message
+    assert "notches" in message
+
+
+def test_success_offers_the_next_step_where_it_is_read():
+    """Setting up fifteen boards means finding the next action fifteen times. It
+    now sits in the success message rather than only as a button further up the
+    page."""
+    source = open(os.path.join("web", "src", "main.js")).read()
+    assert 'id="next-board"' in source
+    assert "async function nextBoard()" in source
+    assert "Unplug this one, plug in the next" in source
+
+
+def test_a_wrong_radio_group_is_pointed_out():
+    """The failure this project keeps warning about is silent on the air. The
+    page can see it, so it says so."""
+    source = open(os.path.join("web", "src", "main.js")).read()
+    assert "s.group !== currentGroup()" in source
+    assert "cannot" in source and "hear each other" in source
+
+
+def test_step_one_tells_people_to_leave_it_alone():
+    page = open(os.path.join("web", "index.html")).read()
+    setup = page[page.index('id="setup"'):page.index('id="connect-step"')]
+    assert "leave this alone" in setup.lower()
+
+
+def test_the_monitor_is_labelled_by_what_it_is_for():
+    """"Radio monitor" describes the mechanism. A teacher is looking for a way to
+    check the Fox works."""
+    page = open(os.path.join("web", "index.html")).read()
+    assert "Check the Fox is working" in page
+
+
+def test_messages_after_teardown_go_somewhere_visible():
+    """Found during the teacher walkthrough: clearBoardUi hides the "Flash it"
+    section, and the "N boards done, plug in the next" message was being written
+    to #result, which lives inside it. The most important feedback in the
+    repeat-flashing loop would have been invisible."""
+    page = open(os.path.join("web", "index.html")).read()
+    connect_step = page[page.index('id="connect-step"'):page.index('id="act"')]
+    assert 'id="next-prompt"' in connect_step, (
+        "the prompt element must sit outside the section that gets hidden")
+
+    source = open(os.path.join("web", "src", "main.js")).read()
+    teardown = source[source.index("function clearBoardUi"):
+                      source.index("async function connect()")]
+    assert 'show($("act"), false)' in teardown
+    assert 'banner($("next-prompt")' in teardown
+    assert 'banner($("result")' not in teardown

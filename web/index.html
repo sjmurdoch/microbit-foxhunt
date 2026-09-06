@@ -111,7 +111,9 @@
   <p>
     <strong>This page is the setup step.</strong> It copies the game onto your boards over USB &mdash;
     nothing to install, no account, and no programming required. Once a board is set up it needs
-    only its battery.
+    only its battery. Allow about half a minute for the first board and a few seconds for each one
+    after that, so a class set takes a few minutes. You need <strong>one Fox</strong>, and
+    <strong>one Hound per group</strong> of children.
   </p>
 
   <p>
@@ -125,9 +127,13 @@
 <section id="setup">
   <h2>1. Choose a radio group</h2>
   <p>
-    The fox and the hound must be on the <strong>same group</strong>, and each hunt running at the
-    same time needs its own. If they differ, the hound simply never hears anything &mdash; there is
-    no error to see, so write the group on a sticker and put it on both boards.
+    <strong>Most people should leave this alone.</strong> Change it only if another hunt might be
+    running nearby at the same time &mdash; a second class, or another group in the same park.
+  </p>
+  <p>
+    The group is how the boards find each other. Every board in one game must be on the same one.
+    If two boards differ, the Hound simply never hears anything and there is no error to see, so
+    write the number on a sticker and put it on every board you set up.
   </p>
   <p class="row">
     <label for="group">Radio group</label>
@@ -148,6 +154,10 @@
     <button id="forget" hidden>Done with this board</button>
   </p>
   <p id="status" class="status" role="status" aria-live="polite" hidden></p>
+  <!-- Messages that must survive the board panel being torn down. #result
+       lives inside the "Flash it" section, which is hidden whenever no board is
+       connected, so anything said at that moment has to appear here instead. -->
+  <div id="next-prompt" class="banner ok" role="status" aria-live="polite" hidden></div>
   <div id="board" class="card" hidden></div>
 </section>
 
@@ -157,8 +167,9 @@
   <p class="row">
     <button id="flash-fox" class="primary">Flash as Fox</button>
     <button id="flash-hound" class="primary">Flash as Hound</button>
-    <button id="monitor-start">Radio monitor&hellip;</button>
+    <button id="monitor-start">Check the Fox is working&hellip;</button>
   </p>
+  <p id="tally" class="note" hidden></p>
   <div id="progress" class="card" hidden>
     <div class="bar"><div id="bar-fill"></div></div>
     <p id="progress-text" aria-live="polite"></p>
@@ -167,11 +178,12 @@
 </section>
 
 <section id="monitor-panel" hidden>
-  <h2>Radio monitor</h2>
+  <h2>Check the Fox is working</h2>
   <p class="banner warn">
-    This <strong>replaces the game</strong> on the connected board with a listener that prints what
-    it hears. Put the fox somewhere on its battery, then watch below. Use
-    <em>Put the game back</em> when you are finished.
+    This turns the <em>connected</em> board into a listener so you can see what the Fox is
+    transmitting &mdash; useful before a session, or if a hunt is not working. It
+    <strong>replaces the game</strong> on this board while it runs; put it back with the button
+    below when you have finished. Leave the Fox switched on somewhere nearby.
   </p>
   <div id="monitor-out" class="card" aria-live="polite"></div>
   <p>
@@ -181,7 +193,7 @@
 </section>
 
 <section id="session" hidden>
-  <h2>Boards flashed in this session</h2>
+  <h2 id="session-heading">Boards you have set up</h2>
   <table id="session-table"><thead>
     <tr><th>Board</th><th>Role</th><th>Group</th></tr>
   </thead><tbody></tbody></table>

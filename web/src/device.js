@@ -202,3 +202,27 @@ export function isStaleDevice(error) {
   return /device was disconnected|transfer(In|Out)|No device opened|device is not open/i
     .test(String(error.message || error));
 }
+
+/**
+ * What is set up, counted by board rather than by flash.
+ *
+ * Reflashing a board must not count twice: someone who flashes a board as Fox,
+ * realises the mistake and reflashes it as Hound has one Hound, not one of
+ * each. The last role written to a board is the role it has.
+ *
+ * Boards with no readable serial number are counted individually rather than
+ * collapsed together, since there is no evidence they are the same board.
+ */
+export function tallyBoards(flashed) {
+  const latest = new Map();
+  let anonymous = 0;
+  for (const entry of flashed) {
+    const key = entry.serialNumber || `unknown-${anonymous++}`;
+    latest.set(key, entry);
+  }
+  const counts = {};
+  for (const entry of latest.values()) {
+    counts[entry.role] = (counts[entry.role] || 0) + 1;
+  }
+  return { counts, boards: latest.size, latest: [...latest.values()] };
+}

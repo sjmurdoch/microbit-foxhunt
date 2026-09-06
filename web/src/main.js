@@ -6,7 +6,7 @@
  */
 import { Flasher, BoardRefused, webUsbAvailable } from "./flasher.js";
 import { Monitor } from "./monitor.js";
-import { renderRadioConfig } from "./device.js";
+import { renderRadioConfig, tallyBoards } from "./device.js";
 
 const $ = (id) => document.getElementById(id);
 const GROUP_KEY = "foxhunt.group";
@@ -102,15 +102,18 @@ function refreshGroup() {
 
 // --- connecting ------------------------------------------------------------
 
-function clearBoardUi(warning) {
+function clearBoardUi(warning, kind) {
   board = null;
   show($("board"), false);
   show($("act"), false);
   show($("forget"), false);
   show($("monitor-panel"), false);
+  show($("result"), false);
   text($("connect"), "Connect a micro:bit");
-  if (warning) banner($("result"), "warn", warning);
-  else show($("result"), false);
+  // Not #result: that lives inside the "Flash it" section, which has just been
+  // hidden, so a message put there would never be seen.
+  if (warning) banner($("next-prompt"), kind || "warn", warning);
+  else show($("next-prompt"), false);
 }
 
 async function connect() {
@@ -124,6 +127,7 @@ async function connect() {
     // appears, rather than reconnecting to what is already there -- or, if it
     // has since been unplugged, failing on a dead handle.
     const info = await flasher.connect({ chooseAgain: board !== null });
+    show($("next-prompt"), false);
     text(button, "Connect a different micro:bit");
     show($("forget"), true);
 
@@ -150,13 +154,15 @@ async function connect() {
       banner($("board"), "bad", `<strong>This board will not be flashed.</strong><br>${e.message}`);
       show($("board"), true);
       show($("act"), false);
+      show($("next-prompt"), false);
     } else if (e && e.code === "no-device-selected") {
       // Either the dialog was dismissed, which needs no comment, or every
       // attached board has been excluded by "Done with this board".
       if (flasher.flashed.length) {
-        banner($("result"), "warn",
-          "No board was chosen. Boards you have finished with are hidden from " +
-          "the chooser &mdash; reload the page if you need one of them again.");
+        banner($("next-prompt"), "warn",
+          "No board was chosen. Boards you have already set up are hidden from " +
+          "the chooser, so plug in the next one &mdash; or reload the page if " +
+          "you need to go back to one of them.");
       }
     } else if (e && e.code === "device-in-use") {
       banner($("board"), "bad",
@@ -187,11 +193,24 @@ function renderBoard() {
   } else {
     rows.push(["Currently", "could not be read &mdash; it will still flash"]);
   }
+  // A board on a different group from the one selected will be flashed onto the
+  // selected group, which is usually what is wanted -- but if the user is here
+  // to diagnose a hunt that "does not work", this is the answer, and it is
+  // otherwise invisible. AGENTS.md section 5: the symptom is silence.
+  let mismatch = "";
+  if (s && s.group !== null && s.group !== currentGroup()) {
+    mismatch =
+      `<p class="banner warn">This board is on <strong>group ${s.group}</strong>, but you have ` +
+      `<strong>group ${currentGroup()}</strong> selected above. Boards on different groups cannot ` +
+      `hear each other, and nothing on the board says so. Flashing it now will move it to ` +
+      `group ${currentGroup()}.</p>`;
+  }
+
   $("board").className = "card";
   $("board").innerHTML =
     "<dl class='kv'>" +
     rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("") +
-    "</dl>";
+    "</dl>" + mismatch;
   show($("board"), true);
 
   if (!s && board.surveyState === "pending") {
@@ -205,6 +224,7 @@ function renderBoard() {
         : `This should take a few seconds, because ${forecast.why}.`);
   }
   refreshGroup();
+  renderTally();
 }
 
 function describeCurrent(s) {
@@ -249,11 +269,19 @@ async function doFlash(role) {
 
     const label = manifest.roles[role].label;
     if (boot.ok && verified.ok) {
+      // The next thing to do goes in the success message. It used to live only
+      // as "Done with this board" further up the page, which is nowhere near
+      // where anyone is looking after a flash finishes -- so setting up a class
+      // set meant hunting for the next step fifteen times.
       banner($("result"), "ok",
         `<strong>${label} flashed and running.</strong><br>` +
-        `Radio group <strong>${group}</strong> &mdash; write that on the board.<br>` +
+        `Write <strong>${label} &middot; group ${group}</strong> on a sticker and put it on ` +
+        `this board.<br>` +
         `<span class="note">${stageLabel(stage)} in ${seconds.toFixed(1)} s; ` +
-        `filesystem verified from the board.</span>`);
+        `contents checked against the board.</span>` +
+        `<p class="row"><button id="next-board" class="primary">Done &mdash; set up another board</button></p>`);
+      const next = $("next-board");
+      if (next) next.addEventListener("click", nextBoard);
     } else if (!boot.ok) {
       banner($("result"), "bad",
         `<strong>${label} was written, but it is not running.</strong><br>${escapeHtml(boot.reason)}` +
@@ -283,6 +311,22 @@ async function doFlash(role) {
     refreshGroup();
   }
 }
+
+/** Finish with this board and get ready for the next one. */
+async function nextBoard() {
+  busy("Finishing with this board\u2026");
+  if (monitor) monitor.stop();
+  await flasher.forget(true);
+  busy(null);
+  const { boards } = boardTally();
+  clearBoardUi(
+    `<strong>${boards} board${boards === 1 ? "" : "s"} done.</strong> ` +
+    "Unplug this one, plug in the next, and press <em>Connect a micro:bit</em>.",
+    "ok");
+  renderTally();
+  $("connect").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 
 async function safeSurvey() {
   try {
@@ -396,13 +440,32 @@ async function download(role) {
 
 // --- session ---------------------------------------------------------------
 
+const boardTally = () => tallyBoards(flasher.flashed);
+
+function renderTally() {
+  const { counts, boards } = boardTally();
+  if (!boards) {
+    show($("tally"), false);
+    return;
+  }
+  const parts = Object.entries(counts)
+    .map(([role, n]) => `<strong>${n}</strong> ${manifest.roles[role].label}${n === 1 ? "" : "s"}`);
+  $("tally").innerHTML = "Set up so far: " + parts.join(", ") +
+    ` &mdash; on radio group <strong>${currentGroup()}</strong>.`;
+  show($("tally"), true);
+}
+
 function renderSession() {
+  const { latest, boards } = boardTally();
   const body = $("session-table").querySelector("tbody");
-  body.innerHTML = flasher.flashed
-    .map((f) => `<tr><td class="mono">${(f.serialNumber || "?").slice(0, 12)}…</td>` +
-                `<td>${manifest.roles[f.role].label}</td><td>${f.group}</td></tr>`)
+  body.innerHTML = latest
+    .map((f, i) => `<tr><td>${i + 1}<span class="note mono"> · ${(f.serialNumber || "?").slice(0, 8)}</span></td>` +
+                   `<td>${manifest.roles[f.role].label}</td><td>${f.group}</td></tr>`)
     .join("");
-  show($("session"), flasher.flashed.length > 0);
+  $("session-heading").textContent =
+    boards === 1 ? "1 board set up" : `${boards} boards set up`;
+  show($("session"), boards > 0);
+  renderTally();
 }
 
 function escapeHtml(s) {

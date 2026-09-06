@@ -137,11 +137,15 @@ export class Flasher {
 
     if (version !== "V2") {
       await this.release();
+      // Plain language on purpose. Someone sorting a cupboard of boards needs to
+      // know what to look for, not why the firmware differs.
       throw new BoardRefused(
         "v1",
-        "This is a micro:bit V1. The fox hunt needs a V2: V1 has no speaker, " +
-          "and on V1 radio.config(power=) resets the radio group, which the " +
-          "fox changes three times a second.");
+        "This is an older micro:bit V1, and the game needs a V2. A V1 has no " +
+          "speaker, so the Hound could not beep, and its radio behaves " +
+          "differently in a way that stops the Fox working. " +
+          "On a V2 the logo on the front is gold and the gold strip along the " +
+          "bottom edge has notches in it.");
     }
     return { version, serialNumber, boardId: serialNumber ? serialNumber.slice(0, 4) : null };
   }
