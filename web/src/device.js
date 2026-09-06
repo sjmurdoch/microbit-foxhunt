@@ -221,8 +221,23 @@ export function tallyBoards(flashed) {
     latest.set(key, entry);
   }
   const counts = {};
+  const groups = new Map();
   for (const entry of latest.values()) {
     counts[entry.role] = (counts[entry.role] || 0) + 1;
+    if (!groups.has(entry.group)) groups.set(entry.group, {});
+    const byRole = groups.get(entry.group);
+    byRole[entry.role] = (byRole[entry.role] || 0) + 1;
   }
-  return { counts, boards: latest.size, latest: [...latest.values()] };
+  // Split by radio group, because anyone running two hunts at once changes the
+  // group part-way through. Reporting a single "on group N" taken from whatever
+  // is currently selected misdescribes every board set up before the change,
+  // and a group mismatch is silent on the air.
+  const byGroup = [...groups.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([group, roles]) => ({
+      group,
+      counts: roles,
+      boards: Object.values(roles).reduce((a, b) => a + b, 0),
+    }));
+  return { counts, byGroup, boards: latest.size, latest: [...latest.values()] };
 }

@@ -180,3 +180,5 @@ footer { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1re
 }
 
 h3 { font-size: 1rem; margin: 1.4rem 0 .3rem; }
+
+.warn-text { color: var(--accent); }

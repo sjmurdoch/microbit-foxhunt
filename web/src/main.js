@@ -443,15 +443,21 @@ async function download(role) {
 const boardTally = () => tallyBoards(flasher.flashed);
 
 function renderTally() {
-  const { counts, boards } = boardTally();
+  const { byGroup, boards } = boardTally();
   if (!boards) {
     show($("tally"), false);
     return;
   }
-  const parts = Object.entries(counts)
-    .map(([role, n]) => `<strong>${n}</strong> ${manifest.roles[role].label}${n === 1 ? "" : "s"}`);
-  $("tally").innerHTML = "Set up so far: " + parts.join(", ") +
-    ` &mdash; on radio group <strong>${currentGroup()}</strong>.`;
+  const describe = (counts) => Object.entries(counts)
+    .map(([role, n]) => `<strong>${n}</strong> ${manifest.roles[role].label}${n === 1 ? "" : "s"}`)
+    .join(", ");
+  // Grouped, so running two hunts at once reads correctly. A single line taken
+  // from the currently selected group would misdescribe everything set up
+  // before the group was changed.
+  const lines = byGroup.map((g) =>
+    `Group <strong>${g.group}</strong>: ${describe(g.counts)}` +
+    (g.counts.fox ? "" : ' <span class="warn-text">&mdash; no Fox yet</span>'));
+  $("tally").innerHTML = "Set up so far &mdash; " + lines.join(" &middot; ");
   show($("tally"), true);
 }
 

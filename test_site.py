@@ -1153,3 +1153,83 @@ def test_messages_after_teardown_go_somewhere_visible():
     assert 'show($("act"), false)' in teardown
     assert 'banner($("next-prompt")' in teardown
     assert 'banner($("result")' not in teardown
+
+
+# --- walkthrough 2: scout leader --------------------------------------------
+
+def test_tally_reports_each_radio_group_separately(tmp_path):
+    """Regression from the scout-leader walkthrough. The tally used to append
+    "on radio group N" taken from whatever was currently selected, so anyone
+    running two hunts -- who changes the group part way through, which is the
+    entire purpose of the control -- had every earlier board misreported. A
+    group mismatch is silent on the air, so a misleading tally is worse than
+    none."""
+    flashed = [
+        {"serialNumber": "a", "role": "fox", "group": 16},
+        {"serialNumber": "b", "role": "hound", "group": 16},
+        {"serialNumber": "c", "role": "hound", "group": 16},
+        {"serialNumber": "d", "role": "fox", "group": 23},
+        {"serialNumber": "e", "role": "hound", "group": 23},
+    ]
+    got = run_node(
+        "const t = device.tallyBoards(%s);\n"
+        "console.log(JSON.stringify({boards: t.boards, byGroup: t.byGroup}));"
+        % json.dumps(flashed),
+        tmp_path)
+    assert got["boards"] == 5
+    assert got["byGroup"] == [
+        {"group": 16, "counts": {"fox": 1, "hound": 2}, "boards": 3},
+        {"group": 23, "counts": {"fox": 1, "hound": 1}, "boards": 2},
+    ]
+
+
+def test_tally_notices_a_group_with_no_fox(tmp_path):
+    """Hounds without a Fox on their group is a hunt that cannot work, and it is
+    invisible once the boards are in a bag."""
+    got = run_node(
+        "const t = device.tallyBoards([{serialNumber:'a',role:'hound',group:16},"
+        "{serialNumber:'b',role:'hound',group:16}]);\n"
+        "console.log(JSON.stringify(t.byGroup[0]));",
+        tmp_path)
+    assert "fox" not in got["counts"]
+    source = open(os.path.join("web", "src", "main.js")).read()
+    assert "no Fox yet" in source
+
+
+def test_the_sheets_are_offered_to_clubs_not_only_schools():
+    """"Teaching with it", with a curriculum paragraph, reads as a school thing.
+    A scout or club leader would skim past the sheet that suits them best."""
+    page = open(os.path.join("web", "index.html")).read()
+    teaching = page[page.index('id="teaching"'):page.index('id="guide"')]
+    assert "Teaching with it" not in teaching
+    lowered = teaching.lower()
+    assert "club" in lowered
+    assert "troop" in lowered or "pack" in lowered
+    # The curriculum mapping still has to be findable for the teacher.
+    assert "national curriculum" in lowered
+
+
+def test_running_two_hunts_at_once_is_explained():
+    page = open(os.path.join("web", "index.html")).read()
+    setup = page[page.index('id="setup"'):page.index('id="connect-step"')]
+    assert "two hunts" in setup.lower()
+    assert "own group" in setup.lower()
+
+
+def test_indoor_expectations_are_honest():
+    """Indoors there is about 1 dB between two metres and five, so the hunt
+    degenerates. Someone whose first attempt is in a hall should know that before
+    they conclude the equipment is broken."""
+    page = open(os.path.join("web", "index.html")).read()
+    intro = page[page.index('id="intro"'):page.index('id="setup"')]
+    assert "two metres and five" in intro
+    assert "Outdoors is where the hunt really works" in intro
+
+
+def test_it_says_to_set_boards_up_before_leaving():
+    """A hut with no wi-fi is the normal case for a club. The reliable advice is
+    that a flashed board needs nothing but its battery -- not a claim about this
+    page working offline, which is not yet verified."""
+    page = open(os.path.join("web", "index.html")).read()
+    assert "Set the boards up before you leave" in page
+    assert "needs nothing but its battery" in page

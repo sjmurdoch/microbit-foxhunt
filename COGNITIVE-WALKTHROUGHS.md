@@ -66,3 +66,50 @@ Implementing 1.4 surfaced a latent bug. Tearing down the board panel hides the w
 ### Verification
 
 Seven tests added in `test_site.py`, including one that runs the pure `tallyBoards` under node and asserts that a board flashed as Fox and then corrected to Hound counts once, as a Hound. The others pin the wording and placement outcomes so they are not silently reverted.
+
+---
+
+## 2. Busy Cub Scout leader preparing and running an evening activity
+
+**Date** 2026-09-06 · **Persona** Volunteer Cub leader. 24 Cubs aged 8–10, Wednesday 18:30–20:00 in a scout hut with a field behind it. Has a borrowed box of micro:bits and about twenty minutes before the pack arrives. Not a teacher, has no lesson to deliver and no curriculum to satisfy: wants a game that works, outdoors, in the half-light. Likely to split the pack into sixes and run more than one hunt at once.
+
+**Task sequence walked** decide whether this is an activity or a school exercise → work out where to play → set up boards for *two* simultaneous hunts → print something for the Cubs → run it in a hut with no wi-fi → keep track of which boards belong to which hunt.
+
+The teacher walkthrough (1) already fixed the repetitive set-up loop, and those fixes serve this persona unchanged. What follows is what remained.
+
+### Issues found
+
+**2.1 — The running total lied as soon as a second hunt began (Q4)** — *a genuine bug, and it hit exactly the person the feature exists for*
+The tally read "Set up so far: 1 Fox, 9 Hounds — on radio group 16", where the group was taken from *whatever was currently selected*. Running two hunts means changing the group part-way through, which is the whole purpose of that control — and doing so silently relabelled every board set up before the change. The one failure this project documents most insistently is a group mismatch, whose only symptom is silence, so a confidently wrong tally is worse than no tally.
+*Fixed:* the tally is computed per radio group — "Group 16: 1 Fox, 5 Hounds · Group 23: 1 Fox, 4 Hounds". The grouping is done in the pure `tallyBoards`, so it is tested rather than eyeballed.
+
+**2.2 — Hounds with no Fox on their group were invisible (Q4)**
+A hunt with no Fox cannot work, and once the boards are in a bag there is nothing to see. The app had the information and never used it.
+*Fixed:* a group with Hounds and no Fox is flagged in the tally as "no Fox yet".
+
+**2.3 — Nothing explained how to run two hunts (Q1, Q3)**
+The radio group control existed and its consequences were described, but the *procedure* was not: pick a group, set up that hunt completely, change the number, do the next. A leader could reasonably conclude they needed two computers, or give up and run one big hunt.
+*Fixed:* a short note in step 1 giving the order of operations, and pointing at the tally as the thing that keeps them apart.
+
+**2.4 — The sheets were behind a door marked "Teaching with it" (Q2, Q3)**
+The section opened with a paragraph about science lessons and closed with Key Stage 2 curriculum mapping. The 20-minute hunt card — by far the best fit for a pack night — was the third of three buttons under a school-shaped heading. A volunteer with no lesson to plan would skim the whole section.
+*Fixed:* retitled "Sheets to print", opening with "whether this is a science lesson or a Wednesday evening activity". The hunt card is listed first and described as the one for a club, a party or a first go; the lesson plan is renamed "Plan for the leader" and its 20-minute running order, safety and kit notes are called out as useful to a pack or troop. The curriculum mapping is kept, because walkthrough 1's teacher needs it — it is now the last sentence rather than the framing.
+
+**2.5 — Indoor expectations were too kind (Q1)**
+"Indoors works but is much less predictable" undersells it. This project measured about 1 dB between two metres and five metres indoors — no usable gradient at all. A leader whose first attempt is in the hut on a wet evening will conclude the equipment is broken.
+*Fixed:* says plainly that indoors the readings jump about and there is barely any difference between two metres and five, that a hall is fine for a quick game, and that outdoors is where it really works.
+
+**2.6 — No advice for a venue with no wi-fi (Q1)**
+A scout hut with no connection is the normal case, and the page is the only way to set boards up.
+*Fixed:* added to the pre-hunt checklist: set the boards up before you leave, because once a board has the game it needs nothing but its battery. Deliberately phrased as that, rather than as a claim that this page works offline — a service worker exists and caches the site, but offline operation has never actually been tested, and it remains on the open list in `AGENTS.md`. Telling a volunteer something unverified about the one thing standing between them and a working evening would be the wrong trade.
+
+### Deliberately not changed
+
+* **The curriculum mapping and the lesson plan's structure.** Reframed around, not removed — walkthrough 1's teacher needs both.
+* **"Most people should leave this alone" on the radio group.** Added for the teacher, and it might have read as discouraging to the one persona who *should* change it. It survives because the very next sentence names their case, and 2.3 now gives them the procedure.
+* **The three-step flow, and every element of the flashing mechanism.** Again no new capability: this round is grouping an existing count correctly, and wording.
+* **The order of the flashing buttons.** Fox first, Hound second, even though a leader flashes many more Hounds — Fox first matches the order the tally warns about a missing Fox, and the repeat loop is served by the "set up another board" button rather than by button order.
+
+### Verification
+
+Six tests added, including the per-group tally exercised under node with two hunts running at once, and one asserting the wi-fi advice does not overclaim.
