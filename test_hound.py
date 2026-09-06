@@ -110,6 +110,22 @@ def test_ema_smooths_subsequent_readings(hound):
     assert -80 < hound.current_rssi < -60, "a single outlier must not fully move it"
 
 
+def test_ema_still_smooths_at_the_bottom_of_the_scale(hound):
+    """Regression: MIN_RSSI used to double as a "nothing heard yet" marker, so
+    any reading at or below it was treated as a fresh start and snapped instead
+    of averaging. MIN_RSSI is a real signal level -- it was measured at 20 m --
+    so that silently disabled smoothing across the far half of the range,
+    exactly where the 7-8 dB stationary noise hurts most."""
+    hound.process_packet(pkt(1), MIN_RSSI, 0)   # first reading legitimately snaps
+    now = 0
+    for rssi in (MIN_RSSI + 3, MIN_RSSI - 3, MIN_RSSI - 1, MIN_RSSI + 1):
+        now += 200
+        hound.process_packet(pkt(1), rssi, now)
+        assert hound.current_rssi != rssi, (
+            "reading %d was taken raw; the EMA was skipped" % rssi
+        )
+
+
 def test_radio_header_does_not_break_matching(hound):
     hound.process_packet(pkt(2), -80, 0)
     assert hound.get_current_zone(0) == 2
@@ -218,6 +234,13 @@ def test_zone_hold_outlasts_the_slowest_beep():
     """A zone must never expire before its own beep falls due, or the outer
     zone would go permanently silent on a marginal link."""
     assert ZONE_HOLD_MS >= max(BEEP_INTERVAL_MS.values())
+
+
+def test_zone_hold_is_pinned_to_the_signal_timeout():
+    """The tone and the display must stop together, and check_timeout relies on
+    the equality: it leaves zone expiry to get_current_zone entirely. Decoupling
+    these means check_timeout needs its own zone reset again."""
+    assert ZONE_HOLD_MS == SIGNAL_TIMEOUT_MS
 
 
 # --- device compatibility --------------------------------------------------

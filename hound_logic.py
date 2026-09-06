@@ -40,7 +40,8 @@ BEEP_INTERVAL_MS = {1: 1000, 2: 500, 3: 200}
 # so several dropped packets in a row do not change the tone. This must not be
 # shorter than the slowest beep interval, or a zone could expire before its own
 # beep fell due; keeping it equal to SIGNAL_TIMEOUT_MS also means the tone stops
-# and the display blanks at the same moment.
+# and the display blanks at the same moment, and lets check_timeout leave zone
+# expiry entirely to get_current_zone. A test pins the equality.
 ZONE_HOLD_MS = SIGNAL_TIMEOUT_MS
 
 # Weight given to the newest RSSI reading. Stationary noise was measured at
@@ -57,6 +58,10 @@ class HoundController:
         self.attenuation_offset = 0
         self.last_packet_time = 0
         self.current_rssi = MIN_RSSI
+        # MIN_RSSI cannot double as a "nothing heard yet" marker: it is a real
+        # signal level (-87 dBm was measured at 20 m), so a genuinely weak
+        # reading would look like a fresh start and skip the EMA entirely.
+        self.have_reading = False
         self.last_audio_time = 0
         self.zone_last_seen = {1: None, 2: None, 3: None}
 
@@ -81,8 +86,11 @@ class HoundController:
         # other zone would make the bar graph oscillate in step with the fox's
         # transmit-power cycle rather than with the player's movement.
         if b"Z1" in payload:
-            if self.current_rssi <= MIN_RSSI:
+            if not self.have_reading:
+                # Snap to the first reading rather than averaging up from the
+                # floor, which would take several packets to catch up.
                 self.current_rssi = rssi
+                self.have_reading = True
             else:
                 self.current_rssi = (
                     self.current_rssi * (1.0 - EMA_ALPHA) + rssi * EMA_ALPHA
@@ -94,9 +102,16 @@ class HoundController:
                 break
 
     def check_timeout(self, now):
+        """Blank the display when nothing has been heard for a while.
+
+        Zones are not touched here: they expire on their own in
+        get_current_zone, and ZONE_HOLD_MS == SIGNAL_TIMEOUT_MS means they have
+        already done so by the time this fires. Clearing them here as well read
+        as a second, independent expiry mechanism and was dead code.
+        """
         if now - self.last_packet_time > SIGNAL_TIMEOUT_MS:
             self.current_rssi = MIN_RSSI
-            self.zone_last_seen = {1: None, 2: None, 3: None}
+            self.have_reading = False
 
     def get_current_zone(self, now):
         """Highest zone heard recently.
