@@ -312,8 +312,8 @@ async function startMonitor() {
     await loadMicroPython();
     busy("Flashing the listener onto this board\u2026");
     monitor = new Monitor(flasher, {
-      onStart: () => { $("monitor-out").innerHTML = "<p>Listening…</p>"; },
-      onSample: (sample, verdict) => renderMonitor(sample, verdict),
+      onStart: () => { $("monitor-out").innerHTML = "<p>Listening\u2026</p>"; },
+      onUpdate: (state) => renderMonitor(state),
     });
     await monitor.start(group);
     renderSession();
@@ -324,18 +324,42 @@ async function startMonitor() {
   }
 }
 
-function renderMonitor(sample, verdict) {
+function renderMonitor(state) {
   const zones = manifest.monitor.zones;
+  // Two different facts, deliberately shown separately. "Hearing now" is what
+  // this spot can pick up at this moment and drops away as the fox moves off;
+  // "confirmed" is integration_check.py's rule, which is about whether the fox
+  // transmits all three beacons at all, and is cumulative on purpose.
+  const now = zones.map((z) =>
+    state.current.includes(z) ? `<strong>${z}</strong>` : `<span class="note">${z}</span>`).join(" ");
+  const ever = zones.map((z) =>
+    state.ever.includes(z) ? `<strong>${z}</strong>` : `<span class="note">${z}</span>`).join(" ");
+
+  $("monitor-out").className = "card";
   $("monitor-out").innerHTML =
     `<dl class="kv">
-       <dt>Packets</dt><dd>${verdict.count}</dd>
-       <dt>Signal</dt><dd>${sample.rssi} dBm</dd>
-       <dt>Zones heard</dt><dd>${zones.map((z) =>
-         verdict.heard.includes(z) ? `<strong>${z}</strong>` : `<span class="note">${z}</span>`).join(" ")}</dd>
+       <dt>Hearing now</dt><dd>${state.live ? now : "<span class='note'>nothing</span>"}</dd>
+       <dt>Signal</dt><dd>${state.rssi === null ? "<span class='note'>&mdash;</span>" : state.rssi + " dBm"}</dd>
+       <dt>Confirmed</dt><dd>${ever}</dd>
+       <dt>Packets</dt><dd>${state.count}</dd>
      </dl>` +
-    (verdict.ok
-      ? `<p class="banner ok">All three zones heard &mdash; the fox is transmitting and this spot can hear it.</p>`
-      : `<p class="note">Still waiting for: ${verdict.missing.join(", ")}. Move closer to the fox, or check both boards are on group ${currentGroup()}.</p>`);
+    monitorAdvice(state);
+}
+
+function monitorAdvice(state) {
+  if (!state.live) {
+    return state.count === 0
+      ? `<p class="note">Nothing heard yet. Check the fox is powered up and that both boards are on group ${currentGroup()}.</p>`
+      : `<p class="banner warn">No signal now &mdash; out of range, or the fox has stopped.</p>`;
+  }
+  const closest = state.current[state.current.length - 1];
+  const near = closest === "Z3" ? "Very close to the fox."
+    : closest === "Z2" ? "Getting warm."
+      : "In range, but a long way off.";
+  return `<p class="note">${near}</p>` +
+    (state.ok
+      ? `<p class="banner ok">All three zones confirmed &mdash; the fox is transmitting correctly.</p>`
+      : `<p class="note">Not yet confirmed: ${state.missing.join(", ")}. Walk towards the fox to pick up the weaker beacons.</p>`);
 }
 
 async function restoreGame() {

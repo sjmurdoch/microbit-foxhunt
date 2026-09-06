@@ -13,22 +13,37 @@
  *
  * It replaces the game on the board it runs on. The CLI expects you to know
  * that; a page used by someone else has to say so, and offer to put it back.
+ *
+ * Two things it must get right, both learned the hard way elsewhere in this
+ * project. Zones are *held*, not latched, or a fox heard once at 1 m still
+ * reads as three zones from 20 m away. And the display is driven by a clock,
+ * not by arriving packets -- otherwise it freezes on its last reading exactly
+ * when the fox goes out of range, which is the moment it most needs to change.
  */
-import { monitorVerdict, parseMonitorLine } from "./device.js";
+import { monitorState, parseMonitorLine } from "./device.js";
+
+const TICK_MS = 150;
 
 export class Monitor {
   constructor(flasher, handlers) {
     this.flasher = flasher;
     this.handlers = handlers;
     this.running = false;
-    this.heard = [];
-    this.samples = [];
+    this.reset();
+  }
+
+  reset() {
+    this.lastSeen = {};        // zone -> timestamp of its most recent packet
+    this.everHeard = [];       // cumulative, for the integration_check pass rule
+    this.lastPacketAt = null;
+    this.lastRssi = null;
+    this.count = 0;
+    this.carry = "";
   }
 
   async start(group, onProgress) {
     const result = await this.flasher.flashRole("integration", group, onProgress);
-    this.heard = [];
-    this.samples = [];
+    this.reset();
     this.running = true;
     this.flasher.serial.clear();
     this.loop();
@@ -37,16 +52,17 @@ export class Monitor {
 
   async loop() {
     const zones = this.flasher.manifest.monitor.zones;
-    let carry = "";
     while (this.running) {
       const chunk = this.flasher.serial.buf;
       this.flasher.serial.buf = "";
       if (chunk) {
-        const lines = (carry + chunk).split(/\r?\n/);
-        carry = lines.pop();
+        const lines = (this.carry + chunk).split(/\r?\n/);
+        this.carry = lines.pop();
         for (const line of lines) this.consume(line, zones);
       }
-      await new Promise((r) => setTimeout(r, 120));
+      // Emit every tick, packets or not: going quiet is information.
+      this.emit();
+      await new Promise((r) => setTimeout(r, TICK_MS));
     }
   }
 
@@ -57,21 +73,37 @@ export class Monitor {
     }
     const sample = parseMonitorLine(line, zones);
     if (!sample) return;
-    this.samples.push(sample);
-    if (sample.zone && !this.heard.includes(sample.zone)) this.heard.push(sample.zone);
-    this.handlers.onSample && this.handlers.onSample(sample, this.verdict());
+    const now = Date.now();
+    this.count += 1;
+    this.lastPacketAt = now;
+    this.lastRssi = sample.rssi;
+    if (sample.zone) {
+      this.lastSeen[sample.zone] = now;
+      if (!this.everHeard.includes(sample.zone)) this.everHeard.push(sample.zone);
+    }
   }
 
-  verdict() {
-    return {
-      ...monitorVerdict(this.heard, this.flasher.manifest.monitor.zones),
-      heard: [...this.heard],
-      count: this.samples.length,
-      // A rough range reading. The hound smooths this with an EMA; here it is
-      // raw, because the question the organiser is asking is "is the fox alive
-      // and can this spot hear it", not "how far away is it".
-      lastRssi: this.samples.length ? this.samples[this.samples.length - 1].rssi : null,
-    };
+  state(now = Date.now()) {
+    const monitor = this.flasher.manifest.monitor;
+    return monitorState(
+      {
+        lastSeen: this.lastSeen,
+        everHeard: this.everHeard,
+        lastPacketAt: this.lastPacketAt,
+        lastRssi: this.lastRssi,
+        count: this.count,
+      },
+      now,
+      {
+        zones: monitor.zones,
+        holdMs: monitor.zone_hold_ms,
+        timeoutMs: monitor.signal_timeout_ms,
+      },
+    );
+  }
+
+  emit() {
+    this.handlers.onUpdate && this.handlers.onUpdate(this.state());
   }
 
   stop() {

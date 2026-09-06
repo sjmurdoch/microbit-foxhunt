@@ -536,3 +536,88 @@ def test_stale_device_errors_are_recognised(tmp_path):
     assert got["fresh"] == [False] * len(fresh)
     assert got["byCode"] == [True, True, False]
     assert got["nothing"] is False
+
+
+# --- the monitor holds zones, it does not latch them ------------------------
+
+def test_monitor_timing_comes_from_the_hound():
+    """Regression: the monitor invented its own idea of how long a zone lasts.
+    AGENTS.md section 6 already settled that question for the game -- a zone is
+    held for a window, not latched -- and the window was tuned against real
+    packet loss. Sharing the constant means a recalibration moves both."""
+    import hound_logic
+
+    monitor = build_manifest()["monitor"]
+    assert monitor["zone_hold_ms"] == hound_logic.ZONE_HOLD_MS
+    assert monitor["signal_timeout_ms"] == hound_logic.SIGNAL_TIMEOUT_MS
+
+
+def test_monitor_drops_a_zone_once_it_stops_arriving(tmp_path):
+    """The reported bug: a fox heard close up still showed all three zones after
+    it moved away, because zones accumulated and nothing ever expired them."""
+    got = run_node(
+        "const cfg = {zones: ['Z1','Z2','Z3'], holdMs: 1000, timeoutMs: 1000};\n"
+        "// Everything heard at t=0, then only Z1 keeps arriving.\n"
+        "const state = {lastSeen: {Z1: 5000, Z2: 0, Z3: 0}, everHeard: ['Z1','Z2','Z3'],\n"
+        "               lastPacketAt: 5000, lastRssi: -80, count: 42};\n"
+        "const out = {};\n"
+        "out.atClose = device.monitorState(\n"
+        "  {...state, lastSeen: {Z1: 0, Z2: 0, Z3: 0}, lastPacketAt: 0}, 0, cfg).current;\n"
+        "out.afterMoving = device.monitorState(state, 5000, cfg).current;\n"
+        "out.everStillKnown = device.monitorState(state, 5000, cfg).ever;\n"
+        "out.stillPasses = device.monitorState(state, 5000, cfg).ok;\n"
+        "console.log(JSON.stringify(out));",
+        tmp_path)
+    assert got["atClose"] == ["Z1", "Z2", "Z3"], "close up, all three are audible"
+    assert got["afterMoving"] == ["Z1"], "the weak beacons must drop out once they stop arriving"
+    # But the fact that they were once heard is a different fact, and is kept:
+    # it is what integration_check.py's pass rule is about.
+    assert got["everStillKnown"] == ["Z1", "Z2", "Z3"]
+    assert got["stillPasses"] is True
+
+
+def test_monitor_goes_quiet_when_the_signal_stops(tmp_path):
+    """Losing the fox entirely must clear the reading rather than freeze on the
+    last one. The display is driven by a clock for this reason -- no packet ever
+    arrives to trigger the update."""
+    got = run_node(
+        "const cfg = {zones: ['Z1','Z2','Z3'], holdMs: 1000, timeoutMs: 1000};\n"
+        "const state = {lastSeen: {Z1: 0}, everHeard: ['Z1'], lastPacketAt: 0,\n"
+        "               lastRssi: -70, count: 9};\n"
+        "const out = {};\n"
+        "for (const t of [0, 500, 1500, 60000]) {\n"
+        "  const s = device.monitorState(state, t, cfg);\n"
+        "  out[t] = {live: s.live, rssi: s.rssi, current: s.current};\n"
+        "}\n"
+        "console.log(JSON.stringify(out));",
+        tmp_path)
+    assert got["0"] == {"live": True, "rssi": -70, "current": ["Z1"]}
+    assert got["500"] == {"live": True, "rssi": -70, "current": ["Z1"]}
+    assert got["1500"]["live"] is False
+    assert got["1500"]["rssi"] is None, "a stale reading is worse than none"
+    assert got["1500"]["current"] == []
+    assert got["60000"]["live"] is False
+
+
+def test_monitor_reports_nothing_before_the_first_packet(tmp_path):
+    got = run_node(
+        "const cfg = {zones: ['Z1','Z2','Z3'], holdMs: 1000, timeoutMs: 1000};\n"
+        "const s = device.monitorState(\n"
+        "  {lastSeen: {}, everHeard: [], lastPacketAt: null, lastRssi: null, count: 0}, 0, cfg);\n"
+        "console.log(JSON.stringify({live: s.live, current: s.current, ok: s.ok, missing: s.missing}));",
+        tmp_path)
+    assert got == {"live": False, "current": [], "ok": False, "missing": ["Z1", "Z2", "Z3"]}
+
+
+def test_monitor_zone_order_follows_the_manifest(tmp_path):
+    """The display reads the last entry as 'closest', so the order must be the
+    zones' own order rather than whatever order packets happened to arrive in."""
+    got = run_node(
+        "const cfg = {zones: ['Z1','Z2','Z3'], holdMs: 1000, timeoutMs: 1000};\n"
+        "const s = device.monitorState(\n"
+        "  {lastSeen: {Z3: 0, Z1: 0, Z2: 0}, everHeard: ['Z3','Z1','Z2'],\n"
+        "   lastPacketAt: 0, lastRssi: -50, count: 3}, 0, cfg);\n"
+        "console.log(JSON.stringify({current: s.current, ever: s.ever}));",
+        tmp_path)
+    assert got["current"] == ["Z1", "Z2", "Z3"]
+    assert got["ever"] == ["Z1", "Z2", "Z3"]

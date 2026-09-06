@@ -197,6 +197,8 @@ Host-side scripts must not repeat that mistake. `flash.pick_port` prints both bo
 
 **Adding a device file is still three places.** `build_site.py` derives its manifest from `flash.ROLES`, so the web flasher does not become a fourth.
 
+**The radio monitor holds zones rather than latching them**, and takes `ZONE_HOLD_MS` and `SIGNAL_TIMEOUT_MS` from `hound_logic.py` rather than choosing its own. It shipped with the latch bug section 6 describes, in a worse form: a fox heard once at 1 m still showed all three zones from 20 m away, because nothing ever expired them. It also refreshes on a clock rather than on arriving packets -- a display driven by packets freezes on its last reading exactly when the fox goes out of range, which is when it most needs to change. "Heard now" and "confirmed at some point" are shown separately, because they are different facts: the second is `integration_check.py`'s pass rule and is cumulative on purpose.
+
 #### Measured on hardware, 2026-09-06 (v2 boards, MicroPython 2.1.2, DAPLink 0257)
 
 | | |

@@ -237,12 +237,13 @@ def build_manifest(sources=None):
             }
             for role, files in ROLES.items()
         },
-        "monitor": {
-            "start": MONITOR_START,
-            "rx": MONITOR_RX,
-            "zones": list(monitor_zones()),
-            "listen_seconds": monitor_listen_seconds(),
-        },
+        "monitor": dict(
+            start=MONITOR_START,
+            rx=MONITOR_RX,
+            zones=list(monitor_zones()),
+            listen_seconds=monitor_listen_seconds(),
+            **monitor_timing()
+        ),
         "filesystem_bytes": FILESYSTEM_BYTES,
     }
 
@@ -260,6 +261,24 @@ def monitor_zones():
 def monitor_listen_seconds():
     import integration_check
     return integration_check.LISTEN_SECONDS
+
+
+def monitor_timing():
+    """How long the monitor holds a zone before dropping it, and when it decides
+    it has lost the fox entirely.
+
+    Taken from the hound rather than chosen here. AGENTS.md section 6 records
+    why the game holds a zone for a window instead of latching it: latching made
+    the tone a coin flip on packet loss. A monitor that latches has the same bug
+    in a worse form, because nothing ever clears it -- a fox heard at 1 m still
+    shows all three zones from 20 m away. Sharing the constant also means a
+    recalibration moves both together.
+    """
+    import hound_logic
+    return {
+        "zone_hold_ms": hound_logic.ZONE_HOLD_MS,
+        "signal_timeout_ms": hound_logic.SIGNAL_TIMEOUT_MS,
+    }
 
 
 def check_micropython():

@@ -126,10 +126,47 @@ export function parseMonitorLine(line, zones) {
   return { payload, rssi: Number(m[2]), zone };
 }
 
-/** integration_check.py's pass rule: every zone heard. */
+/** integration_check.py's pass rule: every zone heard at some point. */
 export function monitorVerdict(heard, zones) {
   const missing = zones.filter((z) => !heard.includes(z));
   return { ok: missing.length === 0, missing };
+}
+
+/**
+ * What the monitor can hear *now*, as opposed to what it has ever heard.
+ *
+ * A zone is held for `holdMs` after its last packet and then drops out. This is
+ * the same decision hound_logic.get_current_zone makes, and for the same reason
+ * (AGENTS.md section 6): the zones arrive on a 200 ms cycle and drop packets, so
+ * anything shorter flaps. The constant comes from the hound itself rather than
+ * being chosen again here.
+ *
+ * The monitor originally accumulated zones and never expired them, so a fox
+ * heard once at 1 m still showed all three zones from 20 m away -- the same
+ * latch-and-never-clear bug the game had, in a worse form because nothing ever
+ * reset it.
+ *
+ * `ever` is kept separately because it is what integration_check.py's pass rule
+ * is about: confirming the fox transmits all three beacons at all. Both facts
+ * are useful and they are not the same fact.
+ */
+export function monitorState(state, now, cfg) {
+  const { zones, holdMs, timeoutMs } = cfg;
+  const current = zones.filter(
+    (z) => state.lastSeen[z] !== undefined && now - state.lastSeen[z] <= holdMs);
+  const silentMs = state.lastPacketAt === null ? null : now - state.lastPacketAt;
+  const live = silentMs !== null && silentMs <= timeoutMs;
+  return {
+    current,
+    ever: zones.filter((z) => state.everHeard.includes(z)),
+    ...monitorVerdict(state.everHeard, zones),
+    live,
+    silentMs,
+    count: state.count,
+    // A reading from a fox that stopped transmitting a minute ago is worse than
+    // no reading, so it goes away with the signal.
+    rssi: live ? state.lastRssi : null,
+  };
 }
 
 /**
