@@ -20,6 +20,26 @@ let board = null;
 const text = (el, s) => { el.textContent = s; };
 const show = (el, on = true) => { el.hidden = !on; };
 
+/**
+ * Say what is happening, immediately.
+ *
+ * The slow steps are the device chooser (as long as the user takes), reading a
+ * board over the REPL (a few seconds), and a full flash (23 seconds). Greying
+ * out a button is not enough feedback for any of them -- the page reads as
+ * broken. Every await below is bracketed by one of these.
+ */
+function busy(message) {
+  const el = $("status");
+  if (!message) {
+    show(el, false);
+    el.innerHTML = "";
+    return;
+  }
+  el.className = "status";
+  el.innerHTML = `<span class="spinner" aria-hidden="true"></span><span>${escapeHtml(message)}</span>`;
+  show(el, true);
+}
+
 function banner(el, kind, html) {
   el.className = "card banner " + kind;
   el.innerHTML = html;
@@ -42,7 +62,9 @@ async function loadManifest() {
 /** The MicroPython image is 1.2 MB, so it is fetched only when first needed. */
 async function loadMicroPython(onNote) {
   if (sources.__micropython) return;
-  onNote && onNote("Fetching MicroPython " + manifest.micropython.version + "…");
+  const note = "Fetching MicroPython " + manifest.micropython.version + " (1.2 MB, once)\u2026";
+  busy(note);
+  onNote && onNote(note);
   const path = "micropython/" + manifest.micropython.file;
   sources.__micropython = await (await fetch(path)).text();
 }
@@ -80,32 +102,62 @@ function refreshGroup() {
 
 // --- connecting ------------------------------------------------------------
 
+function clearBoardUi(warning) {
+  board = null;
+  show($("board"), false);
+  show($("act"), false);
+  show($("forget"), false);
+  show($("monitor-panel"), false);
+  text($("connect"), "Connect a micro:bit");
+  if (warning) banner($("result"), "warn", warning);
+  else show($("result"), false);
+}
+
 async function connect() {
   const button = $("connect");
   button.disabled = true;
+  busy("Opening the device chooser\u2026");
   show($("result"), false);
   try {
-    const info = await flasher.connect();
+    // If a board is already on screen, this button says "Connect a different
+    // micro:bit" and must mean it: drop the remembered device so the picker
+    // appears, rather than reconnecting to what is already there -- or, if it
+    // has since been unplugged, failing on a dead handle.
+    const info = await flasher.connect({ chooseAgain: board !== null });
     text(button, "Connect a different micro:bit");
     show($("forget"), true);
 
-    let survey = null;
+    // Show the board the moment we can identify it, rather than holding the
+    // page blank through several seconds of REPL conversation.
+    board = { ...info, survey: null, surveyState: "pending" };
+    renderBoard();
+    show($("act"), true);
+
     try {
-      survey = await flasher.survey();
+      board.survey = await flasher.survey();
+      board.surveyState = "done";
+      renderBoard();
       await flasher.reset();
     } catch (e) {
       console.warn("[foxhunt] survey failed", e);
+      board.surveyState = "failed";
+      renderBoard();
     }
-    board = { ...info, survey };
-    renderBoard();
-    show($("act"), true);
+    busy(null);
   } catch (e) {
+    busy(null);
     if (e instanceof BoardRefused) {
       banner($("board"), "bad", `<strong>This board will not be flashed.</strong><br>${e.message}`);
       show($("board"), true);
       show($("act"), false);
     } else if (e && e.code === "no-device-selected") {
-      /* the picker was dismissed; say nothing */
+      // Either the dialog was dismissed, which needs no comment, or every
+      // attached board has been excluded by "Done with this board".
+      if (flasher.flashed.length) {
+        banner($("result"), "warn",
+          "No board was chosen. Boards you have finished with are hidden from " +
+          "the chooser &mdash; reload the page if you need one of them again.");
+      }
     } else if (e && e.code === "device-in-use") {
       banner($("board"), "bad",
         "<strong>Another program has this board.</strong> Close any other tab, " +
@@ -129,6 +181,9 @@ function renderBoard() {
   if (s) {
     rows.push(["Firmware", `MicroPython ${s.release || "?"}`]);
     rows.push(["Currently", describeCurrent(s)]);
+  } else if (board.surveyState === "pending") {
+    rows.push(["Firmware", "<span class='note'>reading\u2026</span>"]);
+    rows.push(["Currently", "<span class='note'>reading\u2026</span>"]);
   } else {
     rows.push(["Currently", "could not be read &mdash; it will still flash"]);
   }
@@ -139,11 +194,16 @@ function renderBoard() {
     "</dl>";
   show($("board"), true);
 
-  const forecast = s ? s.forecast : { full: true, seconds: 25, why: "the board's firmware is unknown" };
-  text($("forecast"),
-    forecast.full
-      ? `This will take about ${forecast.seconds} seconds, because ${forecast.why}. Do not unplug it.`
-      : `This should take a few seconds, because ${forecast.why}.`);
+  if (!s && board.surveyState === "pending") {
+    text($("forecast"), "Checking what the board is running\u2026");
+  } else {
+    const forecast = s ? s.forecast
+      : { full: true, seconds: 25, why: "the board's firmware could not be read" };
+    text($("forecast"),
+      forecast.full
+        ? `This will take about ${forecast.seconds} seconds, because ${forecast.why}. Do not unplug it.`
+        : `This should take a few seconds, because ${forecast.why}.`);
+  }
   refreshGroup();
 }
 
@@ -166,6 +226,8 @@ async function doFlash(role) {
   show($("result"), false);
   show($("progress"), true);
   const setNote = (s) => text($("progress-text"), s);
+  setNote(`Preparing to flash the ${manifest.roles[role].label.toLowerCase()}\u2026`);
+  busy("Preparing\u2026");
 
   try {
     await loadMicroPython(setNote);
@@ -204,13 +266,17 @@ async function doFlash(role) {
     }
     renderSession();
     refreshGroup();
-    board.survey = await safeSurvey();
-    if (board.survey) renderBoard();
+    if (board) {
+      board.survey = await safeSurvey();
+      board.surveyState = board.survey ? "done" : "failed";
+      if (board.survey) renderBoard();
+    }
   } catch (e) {
     banner($("result"), "bad",
       `<strong>Flashing failed.</strong> ${escapeHtml(String(e.message || e))}<br>` +
       `<span class="note">The board may need flashing again before it will run.</span>`);
   } finally {
+    busy(null);
     show($("progress"), false);
     $("bar-fill").style.width = "0";
     buttons.forEach((b) => { b.disabled = false; });
@@ -244,13 +310,16 @@ async function startMonitor() {
   $("monitor-panel").scrollIntoView({ behavior: "smooth", block: "start" });
   try {
     await loadMicroPython();
+    busy("Flashing the listener onto this board\u2026");
     monitor = new Monitor(flasher, {
       onStart: () => { $("monitor-out").innerHTML = "<p>Listening…</p>"; },
       onSample: (sample, verdict) => renderMonitor(sample, verdict),
     });
     await monitor.start(group);
     renderSession();
+    busy(null);
   } catch (e) {
+    busy(null);
     banner($("monitor-out"), "bad", escapeHtml(String(e.message || e)));
   }
 }
@@ -285,6 +354,7 @@ async function download(role) {
   text(button, "Building…");
   try {
     await loadMicroPython();
+    busy("Building the .hex\u2026");
     const image = flasher.buildImage(role, group);
     const blob = new Blob([image.hex], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
@@ -294,6 +364,7 @@ async function download(role) {
     a.click();
     URL.revokeObjectURL(url);
   } finally {
+    busy(null);
     text(button, label);
     button.disabled = false;
   }
@@ -318,6 +389,7 @@ function escapeHtml(s) {
 // --- start -----------------------------------------------------------------
 
 async function init() {
+  busy("Loading\u2026");
   await loadManifest();
 
   const input = $("group");
@@ -335,15 +407,23 @@ async function init() {
   }
 
   flasher = new Flasher(manifest, sources);
+  flasher.onStatus = busy;
+  flasher.onUnplugged = () => {
+    if (monitor) monitor.stop();
+    busy(null);
+    clearBoardUi(
+      "<strong>That board was unplugged.</strong> Plug the next one in, then " +
+      "press <em>Connect a micro:bit</em>.");
+  };
   refreshGroup();
 
   $("connect").addEventListener("click", connect);
   $("forget").addEventListener("click", async () => {
+    busy("Disconnecting\u2026");
+    if (monitor) monitor.stop();
     await flasher.forget(true);
-    show($("board"), false);
-    show($("act"), false);
-    show($("forget"), false);
-    text($("connect"), "Connect a micro:bit");
+    busy(null);
+    clearBoardUi();
   });
   $("flash-fox").addEventListener("click", () => doFlash("fox"));
   $("flash-hound").addEventListener("click", () => doFlash("hound"));
@@ -356,6 +436,8 @@ async function init() {
   $("dl-fox").addEventListener("click", () => download("fox"));
   $("dl-hound").addEventListener("click", () => download("hound"));
 
+  if (webUsbAvailable()) $("connect").disabled = false;
+  busy(null);
   registerServiceWorker();
 }
 

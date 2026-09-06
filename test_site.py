@@ -504,3 +504,35 @@ def test_device_snippet_avoids_fstrings():
              if r.strip().rstrip(",").startswith('"')]
     tree = ast.parse("\n".join(lines))
     assert not [n for n in ast.walk(tree) if isinstance(n, ast.JoinedStr)]
+
+
+def test_stale_device_errors_are_recognised(tmp_path):
+    """A board that has been unplugged is still 'known' to microbit-connection,
+    so reconnecting fails inside a USB transfer rather than falling through to
+    the picker. Getting this classification wrong strands the page on a board
+    that is not there -- the exact symptom reported on 2026-09-06.
+
+    The first string is the one a real unplug produced."""
+    stale = [
+        "Failed to execute 'transferOut' on 'USBDevice': The device was disconnected.",
+        "Failed to execute 'transferIn' on 'USBDevice': The device was disconnected.",
+        "No device opened",
+    ]
+    fresh = [
+        "No device selected.",
+        "Could not recognise the Board ID 9907",
+        "Unable to claim interface.",
+    ]
+    got = run_node(
+        "const out = {stale: [], fresh: []};\n"
+        "for (const m of %s) out.stale.push(device.isStaleDevice(new Error(m)));\n"
+        "for (const m of %s) out.fresh.push(device.isStaleDevice(new Error(m)));\n"
+        "out.byCode = ['device-disconnected', 'connection-error', 'no-device-selected']\n"
+        "  .map((code) => device.isStaleDevice(Object.assign(new Error('x'), {code})));\n"
+        "out.nothing = device.isStaleDevice(null);\n"
+        "console.log(JSON.stringify(out));" % (json.dumps(stale), json.dumps(fresh)),
+        tmp_path)
+    assert got["stale"] == [True] * len(stale)
+    assert got["fresh"] == [False] * len(fresh)
+    assert got["byCode"] == [True, True, False]
+    assert got["nothing"] is False

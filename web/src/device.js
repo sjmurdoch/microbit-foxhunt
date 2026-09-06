@@ -147,3 +147,21 @@ export function flashForecast(boardRelease, bundled) {
   }
   return { full: false, seconds: 3, why: `the board already runs MicroPython ${bundled}` };
 }
+
+/**
+ * Does this error mean the board we remembered is no longer there?
+ *
+ * microbit-connection defaults to DeviceSelectionMode.AlwaysAsk, which
+ * "attempts to connect to known device, otherwise asks". Once a board has been
+ * unplugged the cached USBDevice is still *known* but dead, so connecting fails
+ * deep inside a USB transfer -- "Failed to execute 'transferOut' on
+ * 'USBDevice': The device was disconnected" -- instead of falling through to
+ * the picker. The cure is to forget the device and ask again, so this decides
+ * when to do that.
+ */
+export function isStaleDevice(error) {
+  if (!error) return false;
+  if (error.code === "device-disconnected" || error.code === "connection-error") return true;
+  return /device was disconnected|transfer(In|Out)|No device opened|device is not open/i
+    .test(String(error.message || error));
+}

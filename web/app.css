@@ -122,3 +122,34 @@ footer { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1re
   .row { display: block; }
   .row > * { margin-bottom: .5rem; }
 }
+
+/* Every action has to show something happening within a frame or two. The slow
+   steps here are the device chooser, reading a board over the REPL, and a 23
+   second full flash -- all long enough that a page which simply greys a button
+   looks broken. */
+.status {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin: .75rem 0;
+  color: var(--muted);
+}
+
+.spinner {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+}
+
+.status.done .spinner { border: 2px solid var(--ok-fg); animation: none; }
+.bad-text { color: var(--bad-fg); }

@@ -44,9 +44,10 @@
     commonest reason nothing appears. Connect one board at a time.
   </p>
   <p>
-    <button id="connect" class="primary">Connect a micro:bit</button>
+    <button id="connect" class="primary" disabled>Connect a micro:bit</button>
     <button id="forget" hidden>Done with this board</button>
   </p>
+  <p id="status" class="status" role="status" aria-live="polite" hidden></p>
   <div id="board" class="card" hidden></div>
 </section>
 

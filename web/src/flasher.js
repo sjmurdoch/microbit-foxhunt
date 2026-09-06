@@ -24,10 +24,18 @@ import {
   digestText,
   flashForecast,
   groupFromConfig,
+  isStaleDevice,
   parseDigests,
   renderRadioConfig,
   roleFromMain,
 } from "./device.js";
+
+// microbit-connection's ProgressStage values, in words an organiser can read.
+const CONNECT_STAGES = {
+  Initializing: "Checking the browser can talk to USB\u2026",
+  FindingDevice: "Looking for a micro:bit\u2026",
+  Connecting: "Opening the board\u2026",
+};
 
 export class BoardRefused extends Error {
   constructor(kind, message) {
@@ -46,12 +54,34 @@ export class Flasher {
     this.usb = createUSBConnection({ pauseOnHidden: false });
     this.serial = new SerialLink(this.usb);
     this.flashed = [];
+    this.attached = false;
     // Benign background errors are normal around connect and disconnect --
     // "No device opened" and "USB read failed" were both seen without anything
     // actually failing. They are logged, never surfaced as a failure.
     this.usb.addEventListener("backgrounderror", (e) => {
       console.warn("[foxhunt] background:", e && e.error && e.error.message);
     });
+    // The device chooser is a native dialog and can sit open indefinitely.
+    // Without these the page looks frozen for as long as the user takes.
+    this.usb.addEventListener("beforerequestdevice", () =>
+      this.status("Choose your micro:bit in the browser's dialog\u2026"));
+    this.usb.addEventListener("afterrequestdevice", () =>
+      this.status("Opening the board\u2026"));
+
+    // Unplugging is a normal thing to do between boards, and the page has to
+    // notice rather than keep showing a board that is not there any more.
+    if (typeof navigator !== "undefined" && navigator.usb && navigator.usb.addEventListener) {
+      navigator.usb.addEventListener("disconnect", () => {
+        if (!this.attached) return;
+        this.attached = false;
+        if (this.onUnplugged) this.onUnplugged();
+      });
+    }
+  }
+
+  /** Where progress messages go. Replaced by the UI; harmless by default. */
+  status(message) {
+    if (this.onStatus) this.onStatus(message);
   }
 
   /**
@@ -63,9 +93,26 @@ export class Flasher {
    * its BoardId constructor throw before a version exists. Treating that third
    * case as "this is a v1 board" would be wrong and unhelpful.
    */
-  async connect() {
+  async connect({ chooseAgain = false } = {}) {
+    this.status("Looking for a micro:bit\u2026");
+    // "Connect a different micro:bit" means exactly that: drop the remembered
+    // board so the picker comes up, whether or not it is still plugged in.
+    if (chooseAgain) await this.release();
+
+    const open = () => this.usb.connect({
+      progress: (stage) => this.status(CONNECT_STAGES[stage] || "Connecting\u2026"),
+    });
+
     try {
-      await this.usb.connect();
+      try {
+        await open();
+      } catch (e) {
+        if (!isStaleDevice(e)) throw e;
+        // The remembered board has gone. Forget it and ask for another.
+        this.status("That board was unplugged \u2014 choose another\u2026");
+        await this.release();
+        await open();
+      }
     } catch (e) {
       const message = String((e && e.message) || e);
       if (/Could not recognise the Board ID/i.test(message)) {
@@ -86,9 +133,10 @@ export class Flasher {
     const device = this.usb.getDevice();
     const serialNumber = (device && device.serialNumber) || null;
     const version = this.usb.getBoardVersion();
+    this.attached = true;
 
     if (version !== "V2") {
-      await this.forget();
+      await this.release();
       throw new BoardRefused(
         "v1",
         "This is a micro:bit V1. The fox hunt needs a V2: V1 has no speaker, " +
@@ -100,7 +148,9 @@ export class Flasher {
 
   /** Ask a board what it is currently running. Interrupts the program. */
   async survey() {
+    this.status("Pausing the program on the board\u2026");
     await this.serial.interrupt();
+    this.status("Reading what is on the board\u2026");
     const text = await this.serial.rawExec(SURVEY_SNIPPET);
     const info = parseSurvey(text);
     const digests = parseDigests(text);
@@ -203,6 +253,7 @@ export class Flasher {
 
   /** Read the filesystem back and confirm it is what we meant to write. */
   async verify(want) {
+    this.status("Reading the files back off the board\u2026");
     await this.serial.interrupt();
     const text = await this.serial.rawExec(SURVEY_SNIPPET);
     const got = parseDigests(text);
@@ -231,26 +282,41 @@ export class Flasher {
   }
 
   async reset() {
+    this.status("Restarting the board\u2026");
     await this.serial.reset();
   }
 
-  /** Forget this board so the picker asks again, and stop offering it. */
-  async forget(exclude = false) {
-    const device = this.usb.getDevice();
-    const serialNumber = device && device.serialNumber;
-    if (exclude && serialNumber) {
-      const filters = this.flashed
-        .map((f) => f.serialNumber)
-        .filter(Boolean)
-        .map((s) => ({ serialNumber: s }));
-      this.usb.setRequestDeviceExclusionFilters(filters);
-    }
+  /**
+   * Drop the current device so the next connect() shows the picker.
+   *
+   * Both calls are wrapped: if the board has already been unplugged, tearing
+   * down the connection is exactly the operation that throws, and failing here
+   * would strand the page on a board that no longer exists.
+   */
+  async release() {
+    this.attached = false;
     try {
       await this.usb.disconnect();
     } catch (e) {
       /* already gone */
     }
-    await this.usb.clearDevice();
+    try {
+      await this.usb.clearDevice();
+    } catch (e) {
+      /* already gone */
+    }
+  }
+
+  /** Finish with this board, and stop the picker offering it again. */
+  async forget(exclude = false) {
+    if (exclude) {
+      const filters = this.flashed
+        .map((f) => f.serialNumber)
+        .filter(Boolean)
+        .map((serialNumber) => ({ serialNumber }));
+      if (filters.length) this.usb.setRequestDeviceExclusionFilters(filters);
+    }
+    await this.release();
   }
 
   clearExclusions() {
