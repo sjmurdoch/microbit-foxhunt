@@ -31,7 +31,7 @@
   </tbody>
 </table>
 
-<p><strong>Watch the screen.</strong> The lit bars show how strong the signal is right now. They rise as you get closer. If they go blank but you can still hear beeping, keep going &mdash; the sound reaches further than the screen can measure.</p>
+<p><strong>Watch the screen.</strong> The screen fills up from the bottom: count the <strong>lit rows</strong>, from 0 to 5. The more rows, the stronger the signal, so they rise as you get closer. If the screen goes blank but you can still hear beeping, keep going &mdash; the sound reaches further than the screen can measure.</p>
 
 <p><strong>Turn your body.</strong> The Hound's aerial listens in every direction at once. That sounds helpful, but it means the Hound can never tell you <em>which way</em> the Fox is &mdash; only how strong the signal is. There is no arrow to follow.</p>
 
@@ -63,11 +63,15 @@
 
 <h2>Part 1 &mdash; Does the signal get weaker with distance?</h2>
 
-<p>Stand at each marked distance from the Fox. Wait for the reading to settle, then write down how many bars are lit. <strong>Take three readings each time</strong> and use the middle one &mdash; the signal wobbles, so one reading on its own cannot be trusted.</p>
+<p><strong>First press button B.</strong> That puts the Hound back to normal in case anyone has pressed A, which would make every reading too low.</p>
+
+<p>Stand at each marked distance from the Fox. Wait for the reading to settle, then count the <strong>lit rows</strong> on the screen &mdash; a number from 0 to 5, not the number of little red dots.</p>
+
+<p><strong>Take three readings at each distance.</strong> The signal wobbles, so one reading on its own cannot be trusted. To find the middle one, put your three numbers in order from smallest to biggest and use the one in the middle &mdash; so 3, 5, 4 becomes 3, 4, 5, and the middle is <strong>4</strong>.</p>
 
 <table>
   <thead>
-    <tr><th>Distance from Fox</th><th>Reading 1<br>(bars)</th><th>Reading 2<br>(bars)</th><th>Reading 3<br>(bars)</th><th>Middle value</th><th>Beeps: slow / medium / fast</th></tr>
+    <tr><th>Distance from Fox</th><th>Reading 1<br>(rows)</th><th>Reading 2<br>(rows)</th><th>Reading 3<br>(rows)</th><th>Middle value</th><th>Beeps: slow / medium / fast / none</th></tr>
   </thead>
   <tbody>
     <tr><td><strong>1 m</strong></td><td class="fill"></td><td></td><td></td><td></td><td></td></tr>
@@ -85,11 +89,12 @@
 <svg class="grid-svg" viewBox="0 0 460 260" role="img" aria-label="Blank graph grid: bars lit against distance in metres">
   <!-- fine grid -->
   <g class="fine">
-    <line x1="60" y1="20" x2="60" y2="210"/><line x1="100" y1="20" x2="100" y2="210"/>
-    <line x1="140" y1="20" x2="140" y2="210"/><line x1="180" y1="20" x2="180" y2="210"/>
-    <line x1="220" y1="20" x2="220" y2="210"/><line x1="260" y1="20" x2="260" y2="210"/>
-    <line x1="300" y1="20" x2="300" y2="210"/><line x1="340" y1="20" x2="340" y2="210"/>
-    <line x1="380" y1="20" x2="380" y2="210"/><line x1="420" y1="20" x2="420" y2="210"/>
+    <line x1="60" y1="20" x2="60" y2="210"/><line class="minor" x1="79" y1="20" x2="79" y2="210"/><line x1="98" y1="20" x2="98" y2="210"/><line class="minor" x1="117" y1="20" x2="117" y2="210"/>
+    <line x1="136" y1="20" x2="136" y2="210"/><line class="minor" x1="155" y1="20" x2="155" y2="210"/><line x1="174" y1="20" x2="174" y2="210"/><line class="minor" x1="193" y1="20" x2="193" y2="210"/>
+    <line x1="212" y1="20" x2="212" y2="210"/><line class="minor" x1="231" y1="20" x2="231" y2="210"/><line x1="250" y1="20" x2="250" y2="210"/><line class="minor" x1="269" y1="20" x2="269" y2="210"/>
+    <line x1="288" y1="20" x2="288" y2="210"/><line class="minor" x1="307" y1="20" x2="307" y2="210"/><line x1="326" y1="20" x2="326" y2="210"/><line class="minor" x1="345" y1="20" x2="345" y2="210"/>
+    <line x1="364" y1="20" x2="364" y2="210"/><line class="minor" x1="383" y1="20" x2="383" y2="210"/><line x1="402" y1="20" x2="402" y2="210"/><line class="minor" x1="421" y1="20" x2="421" y2="210"/>
+    <line x1="440" y1="20" x2="440" y2="210"/>
     <line x1="60" y1="210" x2="440" y2="210"/><line x1="60" y1="172" x2="440" y2="172"/>
     <line x1="60" y1="134" x2="440" y2="134"/><line x1="60" y1="96" x2="440" y2="96"/>
     <line x1="60" y1="58" x2="440" y2="58"/><line x1="60" y1="20" x2="440" y2="20"/>
@@ -168,7 +173,7 @@
 
 <h2>Part 3 &mdash; When the meter runs out of room</h2>
 
-<p>Walk to about 2&nbsp;m from the Fox. All <strong>__BAR_COUNT__</strong> bars should be lit. Now step 1&nbsp;m closer.</p>
+<p><strong>Press button B first</strong> so the Hound is back to normal. Then walk to about 2&nbsp;m from the Fox. All <strong>__BAR_COUNT__</strong> rows should be lit. Now step 1&nbsp;m closer.</p>
 
 <p>What happened to the bars?</p>
 <div class="write short"></div>
@@ -235,11 +240,11 @@ __CALIBRATION_ROWS__
 
 <svg class="grid-svg" viewBox="0 0 460 260" role="img" aria-label="Blank graph grid: signal strength in dBm against distance in metres">
   <g class="fine">
-    <line x1="60" y1="20" x2="60" y2="210"/><line x1="98" y1="20" x2="98" y2="210"/>
-    <line x1="136" y1="20" x2="136" y2="210"/><line x1="174" y1="20" x2="174" y2="210"/>
-    <line x1="212" y1="20" x2="212" y2="210"/><line x1="250" y1="20" x2="250" y2="210"/>
-    <line x1="288" y1="20" x2="288" y2="210"/><line x1="326" y1="20" x2="326" y2="210"/>
-    <line x1="364" y1="20" x2="364" y2="210"/><line x1="402" y1="20" x2="402" y2="210"/>
+    <line x1="60" y1="20" x2="60" y2="210"/><line class="minor" x1="79" y1="20" x2="79" y2="210"/><line x1="98" y1="20" x2="98" y2="210"/><line class="minor" x1="117" y1="20" x2="117" y2="210"/>
+    <line x1="136" y1="20" x2="136" y2="210"/><line class="minor" x1="155" y1="20" x2="155" y2="210"/><line x1="174" y1="20" x2="174" y2="210"/><line class="minor" x1="193" y1="20" x2="193" y2="210"/>
+    <line x1="212" y1="20" x2="212" y2="210"/><line class="minor" x1="231" y1="20" x2="231" y2="210"/><line x1="250" y1="20" x2="250" y2="210"/><line class="minor" x1="269" y1="20" x2="269" y2="210"/>
+    <line x1="288" y1="20" x2="288" y2="210"/><line class="minor" x1="307" y1="20" x2="307" y2="210"/><line x1="326" y1="20" x2="326" y2="210"/><line class="minor" x1="345" y1="20" x2="345" y2="210"/>
+    <line x1="364" y1="20" x2="364" y2="210"/><line class="minor" x1="383" y1="20" x2="383" y2="210"/><line x1="402" y1="20" x2="402" y2="210"/><line class="minor" x1="421" y1="20" x2="421" y2="210"/>
     <line x1="440" y1="20" x2="440" y2="210"/>
     <line x1="60" y1="210" x2="440" y2="210"/><line x1="60" y1="172" x2="440" y2="172"/>
     <line x1="60" y1="134" x2="440" y2="134"/><line x1="60" y1="96" x2="440" y2="96"/>
@@ -272,6 +277,11 @@ __CALIBRATION_ROWS__
   <li>The quiet beacon disappears somewhere between 3&nbsp;m and 8&nbsp;m. Why does the quiet beacon vanish before the loud one?<div class="write"></div><div class="write"></div></li>
   <li><strong>The tricky one.</strong> Look at 15&nbsp;m and 20&nbsp;m. The signal at 20&nbsp;m is <em>stronger</em>, even though it is further away. The scientists who took these readings checked, and it was not a mistake. Using what you learned in Part 2b, suggest why this might happen.<div class="write"></div><div class="write"></div><div class="write"></div></li>
 </ol>
+
+<div class="box">
+  <h3>Now play it for real</h3>
+  <p>Everything so far has been measuring, with the Fox in a place you already knew. The real game is finding one that is <strong>hidden</strong>. Ask if you can have a go: use the three tricks &mdash; walk and watch, turn on the spot, and press A when the screen fills up. You now know why each of them works, which is more than most hunters do.</p>
+</div>
 
 <footer>
   <p>Fox Hunt worksheet &middot; flasher <code>__SITE_SHORT__</code> &middot; device code <code>__DEVICE_VERSION__</code></p>

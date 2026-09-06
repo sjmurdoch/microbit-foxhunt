@@ -70,6 +70,9 @@ li { margin: .3rem 0; }
 .grid-svg { width: 100%; height: auto; max-width: 34rem; display: block; margin: .8rem 0; }
 .grid-svg .axis { stroke: var(--ink); stroke-width: 1.6; fill: none; }
 .grid-svg .fine { stroke: var(--rule); stroke-width: .6; }
+/* Odd metres are drawn fainter: they are there so a reading taken at 1, 3 or
+   5 m can actually be placed, without crowding the labelled even metres. */
+.grid-svg .minor { stroke-opacity: .45; }
 .grid-svg text { font: 11px system-ui, sans-serif; fill: var(--ink); }
 
 .tick { font-family: system-ui, sans-serif; font-size: .85rem; color: var(--muted); }

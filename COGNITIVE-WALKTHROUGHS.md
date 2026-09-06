@@ -113,3 +113,50 @@ A scout hut with no connection is the normal case, and the page is the only way 
 ### Verification
 
 Six tests added, including the per-group tally exercised under node with two hunts running at once, and one asserting the wi-fi advice does not overclaim.
+
+---
+
+## 3. Keen Year 5 pupil with a Hound and the full worksheet
+
+**Date** 2026-09-06 · **Persona** Ten years old, enjoys science, wants to do this properly and get it right. Has been handed a working Hound and the printed investigation worksheet. Has never met a micro:bit, a median, or the idea that an instrument can run out of range.
+
+This persona never opens the flasher. Their interface is **the printed worksheet and the device itself**, so that is what was walked. No device code was changed: every fix is to the paper.
+
+**Task sequence walked** read the mission → predict → measure at seven distances and plot a line graph → test blocking → test bouncing → discover saturation and use button A → write conclusions → attempt the challenge data.
+
+### Issues found
+
+**3.1 — The graph could not be plotted accurately (Q4)** — *a defect in the sheet itself*
+The first graph's vertical gridlines were spaced 40px apart while its axis labels were spaced 38px, so the two drifted apart across the page — by the right-hand edge a gridline sat almost a metre from its label — and there was no gridline at 20 m at all, which is the last reading the table asks for. Worse, pupils record 1, 3 and 5 m, and the grid only had lines at even metres, so three of seven readings had nothing to plot against.
+*Fixed:* both graphs regenerated with a line at every metre, aligned to the labels, odd metres drawn fainter so the labelled ones still read clearly. Two tests now assert that every axis label has a gridline at the same coordinate and that the spacing is uniform — the sort of error that is invisible in source and obvious on paper.
+
+**3.2 — "How many bars are lit" invites the wrong count (Q3)**
+The display is a 5×5 grid of LEDs that fills row by row. A careful child, asked for "bars", may well count the individual red dots and write 15 where the answer is 3. Every subsequent reading, the graph and the conclusions would follow from that.
+*Fixed:* the sheet asks for the number of **lit rows**, "a number from 0 to 5, not the number of little red dots", and the table columns are headed "rows".
+
+**3.3 — "Use the middle one" is ambiguous exactly where precision matters (Q3)**
+Meant as the median. To a ten-year-old, "the middle one" of three readings most naturally means the second one taken. The distinction matters here because the whole point of repeating is to survive a wobbling signal, and taking the second reading achieves nothing.
+*Fixed:* "put your three numbers in order from smallest to biggest and use the one in the middle — so 3, 5, 4 becomes 3, 4, 5, and the middle is 4."
+
+**3.4 — The attenuator was never reset before measuring (Q1)** — *the one that would have quietly ruined the data*
+Part 3 teaches pressing button A, and a keen child will have pressed it while exploring long before then. An attenuated Hound reads several rows low and **nothing on the device says so**. Every reading in Part 1 would have been wrong, consistently, with no way for pupil or teacher to notice — and Part 3 itself opens by asserting that all five rows will be lit at 2 m, which would simply not happen.
+*Fixed:* both measuring parts now open by pressing button B, with the reason given. The lesson plan tells the teacher to have every group do it before starting.
+
+**3.5 — No way to record hearing nothing (Q2)**
+The beep column offered slow, medium or fast. At the far end of the range there may be no beeps at all, and a child who has been told to fill in every box has nowhere to put that.
+*Fixed:* the column reads "slow / medium / fast / none".
+
+**3.6 — The investigation never lets them hunt (Q1)**
+The persona's actual goal is to *find the Fox*. The 90-minute worksheet measures from a Fox whose position everyone already knows, and the lesson plan's activities do the same. A pupil who came for a fox hunt does a physics practical and never hunts anything. The keen ones will notice, and they would be right.
+*Fixed:* the worksheet closes with "Now play it for real", pointing out that the real game is finding a hidden one and that they now know why each of the three tricks works. The lesson plan gains a five-minute slot to hide it once and let them find it, with the hunt card as the fallback if time has gone.
+
+### Deliberately not changed
+
+* **The device code.** Every fault above was in the paper. Adding, say, an on-screen indication that attenuation is active would be a change to `hound.py` with no way to test it here, and it would alter the device-code version on every board. 3.4 is solved by telling pupils to press B.
+* **The order and structure of the investigation.** It builds correctly: measure, then interpret, then discover the limitation. Only the instructions inside it changed.
+* **The reading level of the challenge section.** It is meant to stretch, and the 15 m anomaly is meant to be hard.
+* **The hunt card**, which was already written for this persona's goal and needed nothing.
+
+### Verification
+
+Six tests added, two of which check the graph geometry directly — every axis label has a gridline at its own coordinate, and gridlines are evenly spaced one metre apart. Those catch a class of error that cannot be seen by reading the file.

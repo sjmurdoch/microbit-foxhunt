@@ -1233,3 +1233,69 @@ def test_it_says_to_set_boards_up_before_leaving():
     page = open(os.path.join("web", "index.html")).read()
     assert "Set the boards up before you leave" in page
     assert "needs nothing but its battery" in page
+
+
+# --- walkthrough 3: pupil with a Hound and the worksheet --------------------
+
+def test_graph_gridlines_line_up_with_their_labels():
+    """Found by walking the worksheet as a pupil. The first graph had gridlines
+    every 40px against axis labels every 38px, and no line at all at 20 m, so a
+    point plotted against the grid drifted by up to a metre and the last reading
+    had nothing to plot against."""
+    page = render("worksheet.html")
+    for n, svg in enumerate(re.findall(r"<svg class=\"grid-svg\".*?</svg>", page, re.S), 1):
+        lines = {float(x) for x in re.findall(r'x1="([\d.]+)" y1="20"', svg)}
+        labels = {float(x) for x in re.findall(r'<text x="([\d.]+)" y="228"', svg)}
+        assert labels, "graph %d has no x-axis labels" % n
+        assert labels <= lines, (
+            "graph %d: labels without a gridline at %s"
+            % (n, sorted(labels - lines)))
+
+
+def test_graphs_have_a_line_for_every_metre():
+    """Pupils record 1, 3 and 5 m, which fall between the labelled even metres.
+    Without a line at each metre those readings cannot be placed accurately."""
+    page = render("worksheet.html")
+    for svg in re.findall(r"<svg class=\"grid-svg\".*?</svg>", page, re.S):
+        lines = sorted({float(x) for x in re.findall(r'x1="([\d.]+)" y1="20"', svg)})
+        assert len(lines) == 21, "expected a gridline every metre, got %d" % len(lines)
+        gaps = {round(b - a, 3) for a, b in zip(lines, lines[1:])}
+        assert gaps == {19.0}, gaps
+
+
+def test_worksheet_says_what_to_count():
+    """"How many bars are lit" invites counting the 25 individual LEDs. The
+    display fills by row, and the answer wanted is 0 to 5."""
+    page = render("worksheet.html")
+    assert "lit rows" in page
+    assert "not the number of little red dots" in page
+    assert "(rows)" in page
+
+
+def test_worksheet_explains_which_reading_to_keep():
+    """"Use the middle one" reads as "the second one you took" to a ten year
+    old. The median needs saying, with an example."""
+    page = render("worksheet.html")
+    assert "smallest to biggest" in page
+    assert "3, 5, 4" in page and "middle is <strong>4</strong>" in page
+
+
+def test_worksheet_resets_the_attenuator_before_measuring():
+    """A Hound left attenuated from earlier experimenting reads low, and nothing
+    on the device says so -- every reading in the investigation would be quietly
+    wrong. Both measuring parts now start by pressing B."""
+    page = render("worksheet.html")
+    part1 = page[page.index("Part 1 &mdash;"):page.index("Part 2 &mdash;")]
+    part3 = page[page.index("Part 3 &mdash;"):page.index("Part 4 &mdash;")]
+    assert "press button b" in part1.lower()
+    assert "press button b" in part3.lower()
+    assert "press button B before they start" in render("lesson-plan.html")
+
+
+def test_the_investigation_ends_with_an_actual_hunt():
+    """The 90-minute worksheet measures from a Fox whose position is known, so a
+    pupil doing it never hunts anything. The keen ones will notice."""
+    page = render("worksheet.html")
+    assert "Now play it for real" in page
+    assert "hidden" in page
+    assert "Finish by actually playing" in render("lesson-plan.html")
