@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fox Hunt flasher</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+  <h1>🦊 Fox Hunt flasher</h1>
+  <p class="lead">Puts the fox or the hound onto a BBC micro:bit&nbsp;V2, straight from this page.</p>
+</header>
+
+<main>
+
+<div id="unsupported" class="banner bad" hidden>
+  <strong>This browser cannot flash a micro:bit.</strong>
+  Flashing over USB needs Chrome or Edge on Windows, macOS, Linux or ChromeOS.
+  Firefox and Safari do not support it, and neither does any browser on iPad or iPhone.
+  <br>You can still use the <a href="#downloads">hex downloads</a> below and drag them onto the
+  <code>MICROBIT</code> drive.
+</div>
+
+<section id="setup">
+  <h2>1. Choose a radio group</h2>
+  <p>
+    The fox and the hound must be on the <strong>same group</strong>, and each hunt running at the
+    same time needs its own. If they differ, the hound simply never hears anything &mdash; there is
+    no error to see, so write the group on a sticker and put it on both boards.
+  </p>
+  <p class="row">
+    <label for="group">Radio group</label>
+    <input id="group" type="number" min="1" max="255" step="1" inputmode="numeric">
+    <span id="group-note" class="note"></span>
+  </p>
+  <p id="group-warning" class="banner warn" hidden></p>
+</section>
+
+<section id="connect-step">
+  <h2>2. Connect a board</h2>
+  <p>
+    Plug one micro:bit in with a USB cable that carries data &mdash; a charge-only cable is the
+    commonest reason nothing appears. Connect one board at a time.
+  </p>
+  <p>
+    <button id="connect" class="primary">Connect a micro:bit</button>
+    <button id="forget" hidden>Done with this board</button>
+  </p>
+  <div id="board" class="card" hidden></div>
+</section>
+
+<section id="act" hidden>
+  <h2>3. Flash it</h2>
+  <div id="forecast" class="note"></div>
+  <p class="row">
+    <button id="flash-fox" class="primary">Flash as Fox</button>
+    <button id="flash-hound" class="primary">Flash as Hound</button>
+    <button id="monitor-start">Radio monitor&hellip;</button>
+  </p>
+  <div id="progress" class="card" hidden>
+    <div class="bar"><div id="bar-fill"></div></div>
+    <p id="progress-text" aria-live="polite"></p>
+  </div>
+  <div id="result" class="card" hidden aria-live="polite"></div>
+</section>
+
+<section id="monitor-panel" hidden>
+  <h2>Radio monitor</h2>
+  <p class="banner warn">
+    This <strong>replaces the game</strong> on the connected board with a listener that prints what
+    it hears. Put the fox somewhere on its battery, then watch below. Use
+    <em>Put the game back</em> when you are finished.
+  </p>
+  <div id="monitor-out" class="card" aria-live="polite"></div>
+  <p>
+    <button id="monitor-restore" class="primary">Put the game back (Hound)</button>
+    <button id="monitor-stop">Stop watching</button>
+  </p>
+</section>
+
+<section id="session" hidden>
+  <h2>Boards flashed in this session</h2>
+  <table id="session-table"><thead>
+    <tr><th>Board</th><th>Role</th><th>Group</th></tr>
+  </thead><tbody></tbody></table>
+</section>
+
+<section id="downloads">
+  <h2>No Chrome? Download a .hex</h2>
+  <p>
+    These work in any browser: download, then drag the file onto the <code>MICROBIT</code> drive that
+    appears when you plug the board in. <strong>micro:bit V2 only</strong> &mdash; on a V1 the board
+    will simply not run, with nothing on screen to say why.
+  </p>
+  <p class="row">
+    <button id="dl-fox">Download Fox .hex</button>
+    <button id="dl-hound">Download Hound .hex</button>
+  </p>
+</section>
+
+<section id="guide">
+  <h2>Running a hunt</h2>
+
+  <details open>
+    <summary>Before you start</summary>
+    <ul>
+      <li>Fresh or fully charged AAA cells in every board. The fox must last the whole session.</li>
+      <li>Fox and every hound on the <strong>same radio group</strong>. Label them.</li>
+      <li>Check the fox is dark &mdash; its display should be blank. That is how it hides.</li>
+      <li>Walk a hound 20&nbsp;m from the fox and confirm it still beeps before you hide anything.</li>
+      <li>Agree the boundaries, a finish time, and what to do if someone gets lost.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>What the players hear and see</summary>
+    <ul>
+      <li><strong>Slow beep</strong> &mdash; far away. <strong>Medium</strong> &mdash; getting warm.
+        <strong>Fast alarm</strong> &mdash; very close.</li>
+      <li>The LED bars show signal strength. They rise as you get closer.</li>
+      <li><strong>Button A</strong> turns the sensitivity down when the screen fills up, so you can
+        keep tracking the last few metres. <strong>Button B</strong> resets it.</li>
+      <li>The aerial points everywhere at once, so there is no direction arrow. Turn on the spot: your
+        own body blocks the signal, so when the reading dips, the fox is behind you.</li>
+    </ul>
+  </details>
+
+  <details>
+    <summary>What the ranges should look like</summary>
+    <p class="note">Measured outdoors on 2026-09-06. Your field will differ; these are the shape, not a promise.</p>
+    <table>
+      <thead><tr><th>Distance</th><th>What the hound does</th></tr></thead>
+      <tbody>
+        <tr><td>1&ndash;3 m</td><td>Fast alarm. Only about one bar of change across these three metres &mdash; use button A and body shielding, not the bars.</td></tr>
+        <tr><td>~8 m</td><td>Danger zone gone, middle zone at its fringe.</td></tr>
+        <tr><td>15&ndash;20 m</td><td>Slow beep only. <strong>The display may go blank around 15 m while the sound keeps working &mdash; that is expected</strong>, not a fault.</td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <details>
+    <summary>If something is wrong</summary>
+    <table>
+      <thead><tr><th>Symptom</th><th>Likely cause</th></tr></thead>
+      <tbody>
+        <tr><td>Hound is completely silent</td><td>Different radio group, out of range, or the fox's battery is flat. Check the group first &mdash; it is the only one of the three with no other symptom.</td></tr>
+        <tr><td>Screen blank but still beeping</td><td>Normal at longer range. Keep walking; the bars come back.</td></tr>
+        <tr><td>Screen full, no sense of direction</td><td>Press button A to add attenuation.</td></tr>
+        <tr><td>Board does nothing after flashing</td><td>Reflash it. If it was flashed from a downloaded .hex, check it is a V2.</td></tr>
+        <tr><td>Nothing appears when connecting</td><td>Charge-only USB cable, or another tab or program already has the board.</td></tr>
+        <tr><td>Command line says &ldquo;board busy&rdquo; right after using this page</td><td>Close this tab or just try again &mdash; it settles on its own.</td></tr>
+      </tbody>
+    </table>
+  </details>
+</section>
+
+</main>
+
+<footer>
+  <p>
+    Flasher <code>__SITE_SHORT__</code> &middot; <time>__SITE_DATE__</time><br>
+    Device code <code>__DEVICE_VERSION__</code> (<code>__DEVICE_SHORT__</code> &middot; <time>__DEVICE_DATE__</time>)
+  </p>
+  <p id="sw-note" class="note" hidden></p>
+</footer>
+
+<script src="__SCRIPT__"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+/* Fox Hunt flasher.
+   Plain CSS, no framework: the page has to work offline in a field from a
+   service-worker cache, so every byte is local. */
+
+:root {
+  --bg: #fbfaf7;
+  --fg: #1c1b19;
+  --muted: #5d5a54;
+  --line: #ddd8cf;
+  --card: #ffffff;
+  --accent: #a8420a;
+  --accent-fg: #ffffff;
+  --ok-bg: #e6f4e6;
+  --ok-fg: #1c5c22;
+  --bad-bg: #fbe6e4;
+  --bad-fg: #8c2016;
+  --warn-bg: #fdf3d8;
+  --warn-fg: #6b4c05;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161513;
+    --fg: #ece9e3;
+    --muted: #a49f96;
+    --line: #34312c;
+    --card: #201e1b;
+    --accent: #e2803f;
+    --accent-fg: #1a1512;
+    --ok-bg: #16301a;
+    --ok-fg: #8fd398;
+    --bad-bg: #3a1a17;
+    --bad-fg: #f0a49b;
+    --warn-bg: #362c12;
+    --warn-fg: #e8c877;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+  max-width: 46rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+h2 { font-size: 1.15rem; margin: 2.25rem 0 .5rem; }
+.lead { color: var(--muted); margin-top: 0; }
+
+section { border-top: 1px solid var(--line); padding-top: .25rem; }
+header { padding-bottom: .5rem; }
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: .6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: .4rem;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+
+.row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+
+input[type=number] {
+  font: inherit;
+  width: 5.5rem;
+  padding: .5rem;
+  border: 1px solid var(--line);
+  border-radius: .4rem;
+  background: var(--card);
+  color: var(--fg);
+}
+label { font-weight: 600; }
+
+.note { color: var(--muted); font-size: .9rem; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  padding: .9rem 1rem;
+  margin: .75rem 0;
+}
+
+.banner { border-radius: .5rem; padding: .8rem 1rem; margin: .75rem 0; }
+.banner.bad  { background: var(--bad-bg);  color: var(--bad-fg); }
+.banner.ok   { background: var(--ok-bg);   color: var(--ok-fg); }
+.banner.warn { background: var(--warn-bg); color: var(--warn-fg); }
+
+.bar { height: .55rem; background: var(--line); border-radius: .3rem; overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+table { border-collapse: collapse; width: 100%; margin: .5rem 0; }
+th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .85rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .9rem; margin: 0; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; }
+
+details { margin: .5rem 0; }
+summary { cursor: pointer; font-weight: 600; padding: .35rem 0; }
+
+footer { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1rem; color: var(--muted); font-size: .85rem; }
+
+.stream { max-height: 14rem; overflow: auto; font-family: ui-monospace, Menlo, monospace; font-size: .82rem; white-space: pre-wrap; }
+
+@media (max-width: 30rem) {
+  body { padding: 1rem .8rem 3rem; }
+  button { width: 100%; }
+  .row { display: block; }
+  .row > * { margin-bottom: .5rem; }
+}
