@@ -1,6 +1,6 @@
-# Micro:bit Fox Hunt (ARDF) System Design
+# Radio Treasure Hunt (micro:bit ARDF) System Design
 
-This document describes the Micro:bit Fox Hunt project: its design, architecture, the hardware quirks discovered during development, and the radio characteristics measured on real boards. It is intended as a guide for code review and future maintenance.
+This document describes the Radio Treasure Hunt project -- the activity a hobbyist would call a fox hunt, renamed for the people it is aimed at (see section 5): its design, architecture, the hardware quirks discovered during development, and the radio characteristics measured on real boards. It is intended as a guide for code review and future maintenance.
 
 ## 1. High-Level Design
 
@@ -181,7 +181,7 @@ Host-side scripts must not repeat that mistake. `flash.pick_port` prints both bo
 
 ### The web setup tool
 
-`build_site.py` builds the Fox Hunt site into `site/`, including the browser-based board setup tool, deployed to GitHub Pages by `.github/workflows/pages.yml`. It exists so that someone running a hunt -- a scout leader, a teacher -- can prepare a dozen boards without a checkout, `uv`, or `microfs`. Run it locally with `make site` and `make site-serve`; WebUSB works on `localhost` without HTTPS.
+`build_site.py` builds the Radio Treasure Hunt site into `site/`, including the browser-based board setup tool, deployed to GitHub Pages by `.github/workflows/pages.yml`. It exists so that someone running a hunt -- a scout leader, a teacher -- can prepare a dozen boards without a checkout, `uv`, or `microfs`. Run it locally with `make site` and `make site-serve`; WebUSB works on `localhost` without HTTPS.
 
 **It writes firmware. `flash.py` does not.** This is the one thing to keep in mind when comparing them. `ufs` copies files onto whatever MicroPython is already installed; the web setup tool builds a complete image -- MicroPython plus the filesystem -- and DAPLink writes it as one hex. Three consequences:
 
@@ -195,7 +195,9 @@ Host-side scripts must not repeat that mistake. `flash.pick_port` prints both bo
 
 **The radio group is chosen in the browser**, so `radio_config.py` is served as a template with a `__GROUP__` placeholder -- the same idiom as `calibrate.LOGGER_SRC` -- and substituted at flash time. A test asserts that substituting the repo's own group reproduces `radio_config.py` byte for byte. Because the picker makes it easy to flash two boards onto different groups, and that failure is silent on the air, the page warns when the group changes between boards in a session.
 
-**"Flasher" is avoided in anything a user reads.** It is an unfortunate word on a page aimed at schools and Scout groups, and the site is about the *activity* -- setting the boards up is one part of it, not the point of it. So the page is "Micro:bit Fox Hunt", buttons say "Set up as Fox", and the footer stamp is labelled "Site". Code identifiers keep it (`flasher.js`, the `Flasher` class, `flash.py`, `doFlash`), because "flash" is the correct technical verb for writing firmware and renaming them would churn code nobody reads. A test asserts the word appears in no user-facing page.
+**"Flasher" is avoided in anything a user reads.** It is an unfortunate word on a page aimed at schools and Scout groups, and the site is about the *activity* -- setting the boards up is one part of it, not the point of it. So the page is "Radio Treasure Hunt", buttons say "Set up as Fox", and the footer stamp is labelled "Site". Code identifiers keep it (`flasher.js`, the `Flasher` class, `flash.py`, `doFlash`), because "flash" is the correct technical verb for writing firmware and renaming them would churn code nobody reads. A test asserts the word appears in no user-facing page.
+
+**Neither is "fox hunt", as the name of the activity.** Renamed 2026-09-07: to a child who has not met the hobby, "fox hunt" is the blood sport, and a school or Scout group should not have to explain that before anyone has switched a board on. Every page a user reads is the **Radio Treasure Hunt** -- title, headings, nav links and footer stamps. The hobby's own name is kept as a single aside in the introduction, next to "amateur radio direction finding", because it is what someone would search for and it is worth a child knowing; `test_no_user_facing_page_is_titled_a_fox_hunt` pins both halves of that. **The Fox and the Hound stay**, in the pages as well as the code: they are the game's vocabulary rather than the sport's, the buttons map to `flash.ROLES`, and a treasure hunt with something hidden and something sniffing for it needs no apology. Code identifiers keep `foxhunt` throughout -- the repo, `pyproject.toml`, `GROUP_KEY`, the service-worker cache, `--FOXHUNT--`, and the `.hex` download filename, which is the one place a user can still see the old name.
 
 **Adding a device file is still three places.** `build_site.py` derives its manifest from `flash.ROLES`, so the web setup tool does not become a fourth.
 

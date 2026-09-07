@@ -658,9 +658,10 @@ def test_index_is_well_formed():
 
 
 def test_index_introduces_the_game():
-    """The page is the entry point for someone who has never heard of a fox hunt
-    or held a micro:bit, so the introduction is load-bearing rather than
-    decorative. These are the things they cannot proceed without knowing."""
+    """The page is the entry point for someone who has never heard of a radio
+    treasure hunt or held a micro:bit, so the introduction is load-bearing
+    rather than decorative. These are the things they cannot proceed without
+    knowing."""
     page = open(os.path.join("web", "index.html")).read()
     intro = page[page.index('id="intro"'):page.index('id="setup"')]
     for essential in (
@@ -1377,11 +1378,29 @@ def test_no_user_facing_page_says_flasher():
 
 
 def test_the_site_is_named_for_the_activity():
-    """The page is the Fox Hunt, not a utility that happens to mention one."""
+    """The page is the Radio Treasure Hunt, not a utility that happens to
+    mention one. The name is deliberate: "fox hunt" is what the hobby calls
+    this, but it reads as the blood sport to a child who has not met the term,
+    so nothing a user sees is titled that."""
     page = open(os.path.join("web", "index.html")).read()
-    assert "<title>Micro:bit Fox Hunt</title>" in page
-    assert "Micro:bit Fox Hunt</h1>" in page
+    assert "<title>Radio Treasure Hunt</title>" in page
+    assert "Radio Treasure Hunt</h1>" in page
     lead = page[page.index('class="lead"'):page.index("</header>")]
     assert "hide-and-seek game" in lead
     for name in TEACHING:
-        assert "&larr; Micro:bit Fox Hunt</a>" in render(name), name
+        assert "&larr; Radio Treasure Hunt</a>" in render(name), name
+
+
+def test_no_user_facing_page_is_titled_a_fox_hunt():
+    """The traditional name is worth knowing and is kept as an aside in the
+    introduction, but it must not name the activity where a reader meets the
+    page: the title, a heading, the nav link back, or the footer stamp. Same
+    rule as "flasher"."""
+    assert "&ldquo;fox hunt&rdquo;" in render("index.html"), \
+        "the aside naming the hobby is gone"
+    named = re.compile(r"<title>(.*?)</title>|<h[1-3][^>]*>(.*?)</h[1-3]>"
+                       r"|<footer>(.*?)</footer>|<p class=\"nav[^\"]*\">(.*?)</p>", re.S | re.I)
+    for name in ("index.html",) + TEACHING:
+        for groups in named.findall(render(name)):
+            chunk = "".join(groups)
+            assert "fox hunt" not in chunk.lower(), (name, chunk[:80])

@@ -1,6 +1,6 @@
 # Cognitive walkthroughs
 
-A record of structured usability walkthroughs of the Fox Hunt setup tool, the issues each one found, and what changed as a result. Kept so that a later change can see which behaviours are deliberate.
+A record of structured usability walkthroughs of the Radio Treasure Hunt setup tool, the issues each one found, and what changed as a result. Kept so that a later change can see which behaviours are deliberate.
 
 The method is the standard one. For each step a user must take, ask four questions:
 
