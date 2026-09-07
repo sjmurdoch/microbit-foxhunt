@@ -143,7 +143,7 @@ export class Flasher {
         "v1",
         "This is an older micro:bit V1, and the game needs a V2. A V1 has no " +
           "speaker, so the Hound could not beep, and its radio behaves " +
-          "differently in a way that stops the Fox working. " +
+          "differently in a way that stops the Treasure working. " +
           "On a V2 the logo on the front is gold and the gold strip along the " +
           "bottom edge has notches in it.");
     }

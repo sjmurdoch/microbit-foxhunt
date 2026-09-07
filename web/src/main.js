@@ -393,17 +393,17 @@ function renderMonitor(state) {
 function monitorAdvice(state) {
   if (!state.live) {
     return state.count === 0
-      ? `<p class="note">Nothing heard yet. Check the fox is powered up and that both boards are on group ${currentGroup()}.</p>`
-      : `<p class="banner warn">No signal now &mdash; out of range, or the fox has stopped.</p>`;
+      ? `<p class="note">Nothing heard yet. Check the Treasure is powered up and that both boards are on group ${currentGroup()}.</p>`
+      : `<p class="banner warn">No signal now &mdash; out of range, or the Treasure has stopped.</p>`;
   }
   const closest = state.current[state.current.length - 1];
-  const near = closest === "Z3" ? "Very close to the fox."
+  const near = closest === "Z3" ? "Very close to the Treasure."
     : closest === "Z2" ? "Getting warm."
       : "In range, but a long way off.";
   return `<p class="note">${near}</p>` +
     (state.ok
-      ? `<p class="banner ok">All three zones confirmed &mdash; the fox is transmitting correctly.</p>`
-      : `<p class="note">Not yet confirmed: ${state.missing.join(", ")}. Walk towards the fox to pick up the weaker beacons.</p>`);
+      ? `<p class="banner ok">All three zones confirmed &mdash; the Treasure is transmitting correctly.</p>`
+      : `<p class="note">Not yet confirmed: ${state.missing.join(", ")}. Walk towards the Treasure to pick up the weaker beacons.</p>`);
 }
 
 async function restoreGame() {
@@ -428,7 +428,10 @@ async function download(role) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `foxhunt-${role}-group${group}-microbitV2.hex`;
+    // The file lands in someone's Downloads folder, so it is named the way
+    // the page speaks: treasure, not the `fox` role key underneath.
+    const named = role === "fox" ? "treasure" : role;
+    a.download = `radio-treasure-hunt-${named}-group${group}-microbitV2.hex`;
     a.click();
     URL.revokeObjectURL(url);
   } finally {
@@ -456,7 +459,7 @@ function renderTally() {
   // before the group was changed.
   const lines = byGroup.map((g) =>
     `Group <strong>${g.group}</strong>: ${describe(g.counts)}` +
-    (g.counts.fox ? "" : ' <span class="warn-text">&mdash; no Fox yet</span>'));
+    (g.counts.fox ? "" : ' <span class="warn-text">&mdash; no Treasure yet</span>'));
   $("tally").innerHTML = "Set up so far &mdash; " + lines.join(" &middot; ");
   show($("tally"), true);
 }

@@ -96,6 +96,12 @@ code { font-family: ui-monospace, Menlo, monospace; font-size: .9em; }
   body { max-width: none; padding: 0; background: #fff; color: #000; font-size: 11pt; }
   .nav, .noprint { display: none !important; }
   h2 { break-after: avoid; }
+  /* Headings sit closer to what precedes them on paper than on screen:
+     2rem of air above every h2 is right for scrolling and wasteful in a
+     document someone has to carry. Worth about a line per heading, which
+     is what keeps these sheets paginating the same on A4 and Letter. */
+  h2 { margin-top: 1.3rem; }
+  h3 { margin-top: .9rem; }
   table, .box, .grid-svg { break-inside: avoid; }
   tr { break-inside: avoid; }
   a { color: #000; text-decoration: none; }

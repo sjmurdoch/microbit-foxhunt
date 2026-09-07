@@ -64,14 +64,14 @@
   <p><strong>Fading with distance.</strong> The signal spreads out over an ever-larger area, so less of it reaches the receiver. Outdoors this project measured <strong>__MAX_RSSI__&nbsp;dBm at 1&nbsp;m</strong> falling to about <strong>__MIN_RSSI__&nbsp;dBm at 20&nbsp;m</strong>. Note that it does <em>not</em> fade evenly: most of the drop happens between 3&nbsp;m and 8&nbsp;m.</p>
   <p><strong>Absorption.</strong> A human body is mostly water, which absorbs 2.4&nbsp;GHz strongly. Standing between the receiver and the transmitter produces a noticeable dip &mdash; the basis of Activity&nbsp;3.</p>
   <p><strong>Reflection.</strong> Radio waves bounce off the ground, walls and metal fences. Reflected waves can arrive slightly later than the direct wave and partly cancel it. In this project's own field data the signal at 15&nbsp;m was <em>weaker</em> than at 20&nbsp;m for exactly this reason. This is a genuine, honest complication &mdash; not a mistake &mdash; and it is worth showing to pupils rather than hiding.</p>
-  <p><strong>Direction, and why there is none.</strong> The micro:bit's aerial is a track etched into the circuit board, and it is <em>omnidirectional</em> &mdash; it receives about equally from every direction. So the Hound genuinely cannot indicate a bearing; it only ever reports strength. The way round this is the pupil's own body: a person is mostly water, which absorbs 2.4&nbsp;GHz well, so turning on the spot until the reading dips puts the Fox behind you. Worth being explicit that this is a workaround for a limitation, not a feature of radio.</p>
+  <p><strong>Direction, and why there is none.</strong> The micro:bit's aerial is a track etched into the circuit board, and it is <em>omnidirectional</em> &mdash; it receives about equally from every direction. So the Hound genuinely cannot indicate a bearing; it only ever reports strength. The way round this is the pupil's own body: a person is mostly water, which absorbs 2.4&nbsp;GHz well, so turning on the spot until the reading dips puts the Treasure behind you. Worth being explicit that this is a workaround for a limitation, not a feature of radio.</p>
   <p>Directional aerials do exist &mdash; a Yagi (the sort once seen on rooftops for television) or a small loop &mdash; and competitors in real direction-finding events carry one, which points at the transmitter directly. This activity deliberately does not use one: the built-in aerial is what makes body-shielding necessary, and body-shielding is what makes absorption something pupils feel rather than are told.</p>
-  <p><strong>Saturation.</strong> The display has only __BAR_COUNT__ bars covering a __RSSI_SPAN__&nbsp;dB range, so each bar is about __DB_PER_BAR__&nbsp;dB. Close to the fox the signal is stronger than the top of that range, so all __BAR_COUNT__ bars light and stay lit however much closer you walk. The instrument has run out of room. Pressing <strong>button&nbsp;A</strong> subtracts __ATTEN_STEP__&nbsp;dB &mdash; exactly one bar &mdash; shifting the whole scale so the bars mean something again. Button&nbsp;B resets it. Up to __MAX_PRESSES__ presses are available.</p>
+  <p><strong>Saturation.</strong> The display has only __BAR_COUNT__ bars covering a __RSSI_SPAN__&nbsp;dB range, so each bar is about __DB_PER_BAR__&nbsp;dB. Close to the Treasure the signal is stronger than the top of that range, so all __BAR_COUNT__ bars light and stay lit however much closer you walk. The instrument has run out of room. Pressing <strong>button&nbsp;A</strong> subtracts __ATTEN_STEP__&nbsp;dB &mdash; exactly one bar &mdash; shifting the whole scale so the bars mean something again. Button&nbsp;B resets it. Up to __MAX_PRESSES__ presses are available.</p>
 </div>
 
 <h2>Resources and preparation</h2>
 <ul>
-  <li><strong>Two or more micro:bit V2 boards</strong> with battery packs &mdash; one Fox, and one Hound per group. Any number of Hounds can hunt the same Fox.
+  <li><strong>Two or more micro:bit V2 boards</strong> with battery packs &mdash; one Treasure, and one Hound per group. Any number of Hounds can hunt the same Treasure.
     <br><span class="tick">Cupboards usually hold a mix of generations, and a V1 will not run this game. On a V2 the logo on the front is <strong>gold</strong> and acts as a touch button; a V1's is yellow. A V2's edge connector also has <strong>notches</strong> in it, and the back is labelled MICROPHONE and SPEAKER. Full guide: <a class="showurl" href="https://support.microbit.org/support/solutions/articles/19000119162-how-to-identify-the-version-number-of-your-micro-bit">support.microbit.org</a></span></li>
   <li>A computer running <strong>Chrome or Edge</strong> and a USB data cable, to set the boards up from <a href="index.html">the Radio Treasure Hunt page</a>. Charge-only cables will not work.</li>
   <li>Trundle wheel or 20&nbsp;m tape; cones or chalk to mark 1, 3, 5, 8, 12, 16 and 20&nbsp;m.</li>
@@ -81,17 +81,17 @@
 
 <h3>Before the lesson</h3>
 <ol>
-  <li>Open the <a href="index.html">Radio Treasure Hunt page</a>, choose a <strong>radio group</strong> (the default is __GROUP_DEFAULT__) and set up one board as <strong>Fox</strong> and the rest as <strong>Hound</strong>. <em>Every board in one game must use the same group number.</em> If two classes are out at once, give each class its own group, or their Hounds will chase the wrong Fox.</li>
-  <li>Write the group number on a sticker on each board. A mismatch is completely silent &mdash; the Hound simply never hears anything &mdash; so it is the first thing to check if a group is stuck. Pressing either button on the <strong>Fox</strong> shows its group number for a second and then blanks again, which settles the question in the field without a computer.</li>
-  <li>Test the range yourself: walk 20&nbsp;m from the Fox and confirm the Hound still beeps.</li>
-  <li>Fresh or fully charged cells throughout. The Fox keeps its display dark so it can hide, so a flat Fox and a working one look identical &mdash; press one of its buttons to check: a live Fox answers with its group number.</li>
+  <li>Open the <a href="index.html">Radio Treasure Hunt page</a>, choose a <strong>radio group</strong> (the default is __GROUP_DEFAULT__) and set up one board as <strong>Treasure</strong> and the rest as <strong>Hound</strong>. <em>Every board in one game must use the same group number.</em> If two classes are out at once, give each class its own group, or their Hounds will chase the wrong Treasure.</li>
+  <li>Write the group number on a sticker on each board. A mismatch is completely silent &mdash; the Hound simply never hears anything &mdash; so it is the first thing to check if a group is stuck. Pressing either button on the <strong>Treasure</strong> shows its group number for a second and then blanks again, which settles the question in the field without a computer.</li>
+  <li>Test the range yourself: walk 20&nbsp;m from the Treasure and confirm the Hound still beeps.</li>
+  <li>Fresh or fully charged cells throughout. The Treasure keeps its display dark so it can hide, so a flat Treasure and a working one look identical &mdash; press one of its buttons to check: a live Treasure answers with its group number.</li>
 </ol>
 
 <div class="box noprint">
   <h3>Safety and site management</h3>
   <ul>
     <li>Pupils walk, never run &mdash; they will be watching a screen rather than where they are going.</li>
-    <li>Set and walk the boundaries before starting. Keep the Fox away from roads, water and car parks.</li>
+    <li>Set and walk the boundaries before starting. Keep the Treasure away from roads, water and car parks.</li>
     <li>Boards are bare circuit boards: hold them, keep them dry, never swing them by the battery wire.</li>
     <li>Agree a recall signal and a finish time.</li>
   </ul>
@@ -103,11 +103,11 @@
   <thead><tr><th>Time</th><th>Activity</th></tr></thead>
   <tbody>
     <tr><td>10 min</td><td><strong>Starter &mdash; what do we already know fades?</strong> Ask a pupil to speak from across the room, then from the doorway. Draw out Year 4's &ldquo;sounds get fainter as the distance from the sound source increases&rdquo;. Repeat the thinking with a torch. Establish the analogy that carries the whole lesson: <em>a radio signal is like a light you cannot see</em>. Ask for predictions: will the signal fade evenly, or fast at first and then slowly?</td></tr>
-    <tr><td>10 min</td><td><strong>Activity 1 &mdash; meet the equipment.</strong> Show the Fox: it transmits three separate beacons, loud, medium and quiet, and its display stays dark so it can hide &mdash; press a button and it shows its group number for a moment, which is a neat way in to the group idea below. Show the Hound: beeps tell you roughly how close you are (slow, medium, fast alarm), bars show signal strength. Link to computing: this is a small radio <em>network</em>, and the two boards must agree on a group number to talk at all &mdash; an address, like a house number.</td></tr>
-    <tr><td>25 min</td><td><strong>Activity 2 &mdash; how does the signal fade with distance?</strong> <em>Worksheet part 1.</em> Place the Fox at a marked point. Have every group <strong>press button B before they start</strong> &mdash; a Hound left attenuated from someone's earlier experimenting reads low, and nothing on screen says so. Pupils walk to each marked distance in turn and record the number of lit rows and the beep speed. Insist on repeat readings: the signal wobbles, so take three at each distance and use the middle value &mdash; the worksheet asks them to order the three and take the middle, which is the median. Groups plot bars against distance as a line graph.</td></tr>
-    <tr><td>20 min</td><td><strong>Activity 3 &mdash; blocking and bouncing.</strong> <em>Worksheet part 2.</em> Establish first that the aerial is omnidirectional, so the Hound cannot point anywhere. Then two fair tests, one variable each. (a) <strong>Blocking:</strong> stand still and turn slowly on the spot, watching the bars. The reading dips when your own body is between the Hound and the Fox &mdash; so the Fox is <em>behind</em> you. (b) <strong>Reflecting:</strong> take a reading in the open at 8&nbsp;m, then at 8&nbsp;m with a wall close behind you. Discuss why the second reading may be <em>stronger</em>.</td></tr>
-    <tr><td>15 min</td><td><strong>Activity 4 &mdash; the problem of a full screen.</strong> <em>Worksheet part 3.</em> Send groups to within about 2&nbsp;m of the Fox. All __BAR_COUNT__ bars light. Ask them to step 1&nbsp;m closer: nothing changes. Pose the problem: <em>how can you find the exact spot if the meter cannot tell 2&nbsp;m from 1&nbsp;m?</em> Take suggestions, then introduce button A. Each press makes the Hound __ATTEN_STEP__&nbsp;dB less sensitive &mdash; exactly one bar &mdash; so the bars drop and start responding again. Analogy: sunglasses on a bright day, or turning down a radio that is distorting.</td></tr>
-    <tr><td>5 min</td><td><strong>Finish by actually playing.</strong> The investigation measures from a Fox whose position everyone knows, so nobody has hunted anything. Hide it once and let them find it &mdash; the worksheet ends by pointing at this, and it is the moment the three tricks stop being exercises. If time is short, do it at the start of the next session with the <a href="hunt-card.html">hunt card</a>.</td></tr>
+    <tr><td>10 min</td><td><strong>Activity 1 &mdash; meet the equipment.</strong> Show the Treasure: it transmits three separate beacons, loud, medium and quiet, and its display stays dark so it can hide &mdash; press a button and it shows its group number for a moment, which is a neat way in to the group idea below. Show the Hound: beeps tell you roughly how close you are (slow, medium, fast alarm), bars show signal strength. Link to computing: this is a small radio <em>network</em>, and the two boards must agree on a group number to talk at all &mdash; an address, like a house number.</td></tr>
+    <tr><td>25 min</td><td><strong>Activity 2 &mdash; how does the signal fade with distance?</strong> <em>Worksheet part 1.</em> Place the Treasure at a marked point. Have every group <strong>press button B before they start</strong> &mdash; a Hound left attenuated from someone's earlier experimenting reads low, and nothing on screen says so. Pupils walk to each marked distance in turn and record the number of lit rows and the beep speed. Insist on repeat readings: the signal wobbles, so take three at each distance and use the middle value &mdash; the worksheet asks them to order the three and take the middle, which is the median. Groups plot bars against distance as a line graph.</td></tr>
+    <tr><td>20 min</td><td><strong>Activity 3 &mdash; blocking and bouncing.</strong> <em>Worksheet part 2.</em> Establish first that the aerial is omnidirectional, so the Hound cannot point anywhere. Then two fair tests, one variable each. (a) <strong>Blocking:</strong> stand still and turn slowly on the spot, watching the bars. The reading dips when your own body is between the Hound and the Treasure &mdash; so the Treasure is <em>behind</em> you. (b) <strong>Reflecting:</strong> take a reading in the open at 8&nbsp;m, then at 8&nbsp;m with a wall close behind you. Discuss why the second reading may be <em>stronger</em>.</td></tr>
+    <tr><td>15 min</td><td><strong>Activity 4 &mdash; the problem of a full screen.</strong> <em>Worksheet part 3.</em> Send groups to within about 2&nbsp;m of the Treasure. All __BAR_COUNT__ bars light. Ask them to step 1&nbsp;m closer: nothing changes. Pose the problem: <em>how can you find the exact spot if the meter cannot tell 2&nbsp;m from 1&nbsp;m?</em> Take suggestions, then introduce button A. Each press makes the Hound __ATTEN_STEP__&nbsp;dB less sensitive &mdash; exactly one bar &mdash; so the bars drop and start responding again. Analogy: sunglasses on a bright day, or turning down a radio that is distorting.</td></tr>
+    <tr><td>5 min</td><td><strong>Finish by actually playing.</strong> The investigation measures from a Treasure whose position everyone knows, so nobody has hunted anything. Hide it once and let them find it &mdash; the worksheet ends by pointing at this, and it is the moment the three tricks stop being exercises. If time is short, do it at the start of the next session with the <a href="hunt-card.html">hunt card</a>.</td></tr>
     <tr><td>10 min</td><td><strong>Plenary.</strong> <em>Worksheet part 4.</em> Share graphs. Was the fade even? Which measurement did pupils trust least, and why? Return to the three objectives. Reveal the project's own field data (extension) and ask why 15&nbsp;m came out weaker than 20&nbsp;m.</td></tr>
   </tbody>
 </table>
@@ -116,7 +116,7 @@
 
 <p>
   Use the <a href="hunt-card.html">hunt card</a> instead of the full worksheet. It is one side of A4
-  and the goal is simply to find the Fox. The science is still there but it is carried as tactics
+  and the goal is simply to find the Treasure. The science is still there but it is carried as tactics
   rather than taught as content: the three tricks on the card <em>are</em> the three learning
   objectives, in the order a hunter would meet them.
 </p>
@@ -125,14 +125,14 @@
   <thead><tr><th>Time</th><th>Activity</th></tr></thead>
   <tbody>
     <tr><td>3 min</td><td>Hand out cards. Read the three tricks aloud together &mdash; that is the whole briefing. Set the boundary and the recall signal.</td></tr>
-    <tr><td>12 min</td><td>Hide the Fox and let them hunt in pairs or threes. Circulate and ask one question only: <em>&ldquo;how do you know?&rdquo;</em></td></tr>
-    <tr><td>5 min</td><td>Fastest team first: how did they do it? Then the <strong>quick think</strong> questions on the card. Question 3 is the one to dwell on &mdash; pressing A changes the Hound, not the Fox.</td></tr>
+    <tr><td>12 min</td><td>Hide the Treasure and let them hunt in pairs or threes. Circulate and ask one question only: <em>&ldquo;how do you know?&rdquo;</em></td></tr>
+    <tr><td>5 min</td><td>Fastest team first: how did they do it? Then the <strong>quick think</strong> questions on the card. Question 3 is the one to dwell on &mdash; pressing A changes the Hound, not the Treasure.</td></tr>
   </tbody>
 </table>
 
 <p>
   This works well as a hook before the full lesson, at the end of a topic, or as an outdoor session
-  in its own right. If you run it twice, let the finders hide the Fox the second time: choosing a
+  in its own right. If you run it twice, let the finders hide the Treasure the second time: choosing a
   hiding place is where they apply what they have noticed about walls and reflections.
 </p>
 
@@ -159,14 +159,14 @@
     <tr><td>&ldquo;All five bars means I am right on top of it.&rdquo;</td><td>It means <em>at least</em> as strong as the top of the scale. This is the saturation idea, and Activity 4 exists to break it.</td></tr>
     <tr><td>&ldquo;Pressing A makes the signal weaker.&rdquo;</td><td>It changes the <em>meter</em>, not the signal. Compare with sunglasses: the sun does not dim.</td></tr>
     <tr><td>&ldquo;The reading went up, so I must be closer.&rdquo;</td><td>Not necessarily &mdash; a reflection off a wall can raise it. Move and take another reading.</td></tr>
-    <tr><td>&ldquo;The Hound points at the Fox.&rdquo;</td><td>It cannot. The aerial is omnidirectional &mdash; it receives from every direction about equally &mdash; so the reading carries no bearing at all. Blocking the signal with your own body is the only way to recover a direction. Aerials that <em>are</em> directional exist, and real competitors use them; this one is not.</td></tr>
+    <tr><td>&ldquo;The Hound points at the Treasure.&rdquo;</td><td>It cannot. The aerial is omnidirectional &mdash; it receives from every direction about equally &mdash; so the reading carries no bearing at all. Blocking the signal with your own body is the only way to recover a direction. Aerials that <em>are</em> directional exist, and real competitors use them; this one is not.</td></tr>
   </tbody>
 </table>
 
 <h2>Answers and expected results</h2>
 <div class="box">
   <p><strong>Part 1.</strong> Bars fall as distance increases, but not evenly &mdash; readings hold up over the first few metres and then drop away quickly. Expect the display to blank while the sound continues at longer range; the sound is the coarse instrument and the bars the fine one. Readings wobble by about a bar even standing still, which is why repeats matter.</p>
-  <p><strong>Part 2a.</strong> The reading dips when the pupil's body is between Hound and Fox, because a body absorbs the signal. The dip points <em>away</em> from the Fox.</p>
+  <p><strong>Part 2a.</strong> The reading dips when the pupil's body is between Hound and Treasure, because a body absorbs the signal. The dip points <em>away</em> from the Treasure.</p>
   <p><strong>Part 2b.</strong> Near a wall the reading is often stronger, because a reflected wave arrives as well as the direct one. Some positions may be weaker if the two partly cancel &mdash; both answers are correct and both are evidence of reflection.</p>
   <p><strong>Part 3.</strong> All __BAR_COUNT__ bars light because the signal is above the top of the meter's range; the meter cannot show &ldquo;more than maximum&rdquo;. Pressing A subtracts __ATTEN_STEP__&nbsp;dB, moving the whole scale so differences show up again. It changes the instrument, not the signal.</p>
   <p><strong>Extension.</strong> 15&nbsp;m reads weaker than 20&nbsp;m because waves reflected off the ground arrive out of step with the direct wave and partly cancel it at that distance. It is a real effect that this project measured and could not explain away &mdash; a good moment to discuss trusting data that looks wrong.</p>

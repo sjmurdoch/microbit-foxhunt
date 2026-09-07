@@ -30,6 +30,7 @@ from build_site import (
     MICROPYTHON_SHA256,
     MONITOR_RX,
     MONITOR_START,
+    ROLE_LABELS,
     build_manifest,
     device_code_version,
     device_digest,
@@ -927,7 +928,7 @@ def test_the_hound_is_a_dog():
     used = {int(m) for m in re.findall(r"&#(1[0-9]{5});", page)}
     names = {unicodedata.name(chr(cp)) for cp in used}
     assert "DOG FACE" in names, sorted(names)
-    assert "FOX FACE" in names, sorted(names)
+    assert "GEM STONE" in names, sorted(names)
     assert not any("HORSE" in n for n in names), sorted(names)
 
 
@@ -1141,7 +1142,7 @@ def test_the_monitor_is_labelled_by_what_it_is_for():
     """"Radio monitor" describes the mechanism. A teacher is looking for a way to
     check the Fox works."""
     page = open(os.path.join("web", "index.html")).read()
-    assert "Check the Fox is working" in page
+    assert "Check the Treasure is working" in page
 
 
 def test_messages_after_teardown_go_somewhere_visible():
@@ -1200,7 +1201,7 @@ def test_tally_notices_a_group_with_no_fox(tmp_path):
         tmp_path)
     assert "fox" not in got["counts"]
     source = open(os.path.join("web", "src", "main.js")).read()
-    assert "no Fox yet" in source
+    assert "no Treasure yet" in source
 
 
 def test_the_sheets_are_offered_to_clubs_not_only_schools():
@@ -1395,6 +1396,43 @@ def test_the_site_is_named_for_the_activity():
     assert "hide-and-seek game" in lead
     for name in TEACHING:
         assert "&larr; Radio Treasure Hunt</a>" in render(name), name
+
+
+def test_the_fox_emoji_is_never_used():
+    """A fox on a page that calls the hidden board the Treasure is a leftover,
+    and the whole point of the rename is that nobody has to explain a fox to a
+    child. U+1F98A is banned outright -- literal or numeric reference."""
+    for name in ("app.css", "teaching.css", "teaching.js",
+                 "index.html") + TEACHING + tuple(
+                     os.path.join("src", js) for js in
+                     ("main.js", "monitor.js", "device.js", "flasher.js", "serial.js")):
+        source = open(os.path.join("web", name), encoding="utf-8").read()
+        assert "\U0001f98a" not in source.lower(), name
+        assert "&#129418;" not in source, name
+
+
+def test_the_hidden_board_is_the_treasure_to_a_reader():
+    """"Fox" survives in the code -- flash.ROLES, fox.py, the element ids -- but
+    a user reads "Treasure" everywhere. Attribute values are stripped before the
+    check, because id="flash-fox" is the code name showing through the markup,
+    and the aside naming the hobby is allowed to say "fox hunt"."""
+    strip_attrs = re.compile(r'\s[a-zA-Z-]+="[^"]*"')
+    for name in ("index.html",) + TEACHING:
+        prose = strip_attrs.sub(" ", render(name)).replace("&ldquo;fox hunt&rdquo;", "")
+        stray = re.findall(r"\b[Ff]ox(?:es|'s)?\b", prose)
+        assert not stray, (name, stray)
+
+
+def test_the_role_label_is_what_the_page_calls_it():
+    """ROLE_LABELS is the single place the flashing UI, the identify result, the
+    session table and the tally all take the word from, so it has to agree with
+    the pages. The role *key* stays "fox": that is flash.ROLES, the device
+    filenames and the element ids, none of which a user reads."""
+    assert set(ROLE_LABELS) == set(ROLES)
+    assert ROLE_LABELS["fox"] == "Treasure"
+    assert build_manifest()["roles"]["fox"]["label"] == "Treasure"
+    page = open(os.path.join("web", "index.html")).read()
+    assert ">Set up as Treasure</button>" in page
 
 
 def test_no_user_facing_page_is_titled_a_fox_hunt():

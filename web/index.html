@@ -8,7 +8,7 @@
 </head>
 <body>
 <header>
-  <h1>🦊 Radio Treasure Hunt</h1>
+  <h1>💎 Radio Treasure Hunt</h1>
   <p class="lead">
     A hide-and-seek game played with radio. Everything you need to run one: what it is, sheets to
     print, and a tool for setting up your micro:bits.
@@ -30,10 +30,10 @@
 
   <p>
     It is hide-and-seek, except the thing you hide gives itself away by radio instead of by being
-    visible. One small computer &mdash; the <strong>Fox</strong> &mdash; is hidden somewhere and
-    quietly transmits. Everyone else carries a <strong>Hound</strong>, which cannot see the Fox and
+    visible. One small computer &mdash; the <strong>Treasure</strong> &mdash; is hidden somewhere and
+    quietly transmits. Everyone else carries a <strong>Hound</strong>, which cannot see the Treasure and
     cannot point at it, but <em>can</em> tell how strong the signal is. Players work out where the
-    Fox must be by moving around and watching that strength change.
+    Treasure must be by moving around and watching that strength change.
   </p>
 
   <p>
@@ -43,24 +43,24 @@
     playground, a park or a school field.
   </p>
 
-  <h3>The Fox sends out three signals, not one</h3>
+  <h3>The Treasure sends out three signals, not one</h3>
 
   <p>
-    That is the trick that makes it playable. The Fox transmits a loud signal, a medium one and a
+    That is the trick that makes it playable. The Treasure transmits a loud signal, a medium one and a
     quiet one, over and over. The loud one carries a long way; the quiet one only reaches a few
     metres. So <em>which</em> of them a Hound can hear tells you roughly how close you are, and the
     Hound turns that into a beep rate.
   </p>
 
   <svg class="diagram" viewBox="0 0 440 210" role="img"
-       aria-label="Diagram: three nested zones around a hidden fox. The outer zone gives a slow
+       aria-label="Diagram: three nested zones around a hidden Treasure. The outer zone gives a slow
                    beep, the middle a medium beep, and the innermost a fast alarm. A hound in the
                    outer zone hears only the loudest signal.">
     <circle class="z1" cx="150" cy="105" r="96"/>
     <circle class="z2" cx="150" cy="105" r="60"/>
     <circle class="z3" cx="150" cy="105" r="28"/>
-    <text class="fox" x="150" y="112" text-anchor="middle">&#129418;</text>
-    <text class="lbl" x="150" y="140" text-anchor="middle">Fox (hidden)</text>
+    <text class="fox" x="150" y="112" text-anchor="middle">&#128142;</text>
+    <text class="lbl" x="150" y="140" text-anchor="middle">Treasure (hidden)</text>
     <text class="lbl" x="150" y="70" text-anchor="middle">fast</text>
     <text class="lbl" x="150" y="46" text-anchor="middle">medium</text>
     <text class="lbl" x="150" y="18" text-anchor="middle">slow beep</text>
@@ -89,7 +89,7 @@
       SPEAKER, with the version printed in the bottom right corner.
       <a class="showurl" href="https://support.microbit.org/support/solutions/articles/19000119162-how-to-identify-the-version-number-of-your-micro-bit">How
       to identify your micro:bit</a>.</li>
-    <li><strong>A battery pack for each</strong>, usually 2&times;AAA. The Fox has to run
+    <li><strong>A battery pack for each</strong>, usually 2&times;AAA. The Treasure has to run
       unattended for the whole session.</li>
     <li><strong>A USB data cable</strong> to set the boards up from this page. Charge-only cables
       will not work &mdash; a very common stumbling block.</li>
@@ -102,13 +102,13 @@
   <h3>How a game goes</h3>
 
   <ol>
-    <li>Set the boards up from this page &mdash; one Fox, as many Hounds as you have.</li>
-    <li>Hide the Fox with its battery. It keeps its display switched off so it cannot be spotted.</li>
+    <li>Set the boards up from this page &mdash; one Treasure, as many Hounds as you have.</li>
+    <li>Hide the Treasure with its battery. It keeps its display switched off so it cannot be spotted.</li>
     <li>Players sweep the area listening to their Hound. Slow beep means far, fast alarm means close.</li>
     <li>There is no arrow to follow. The micro:bit's aerial is <em>omnidirectional</em> &mdash; it
       hears equally well from every direction &mdash; so the Hound can report strength but never
       bearing. Players get a direction from their own bodies instead: a person absorbs this kind of
-      radio wave, so turning slowly on the spot until the reading dips puts the Fox behind them.
+      radio wave, so turning slowly on the spot until the reading dips puts the Treasure behind them.
       (Directional aerials do exist, and competitors in real events carry one that points straight
       at the transmitter. A micro:bit has the all-round kind built in.)</li>
     <li>The first to find it wins. Ten to twenty minutes is typical for a school field.</li>
@@ -118,7 +118,7 @@
     <strong>First, each board needs the game copied onto it.</strong> The three steps below do that
     over USB &mdash; nothing to install, no account, and no programming required. Once a board is set up it needs
     only its battery. Allow about half a minute for the first board and a few seconds for each one
-    after that, so a class set takes a few minutes. You need <strong>one Fox</strong>, and
+    after that, so a class set takes a few minutes. You need <strong>one Treasure</strong>, and
     <strong>one Hound per group</strong> of children.
   </p>
 
@@ -142,14 +142,14 @@
     write the number on a sticker and put it on every board you set up.
   </p>
   <p>
-    <strong>The Fox will also tell you.</strong> Press either button on it and it shows its group
+    <strong>The Treasure will also tell you.</strong> Press either button on it and it shows its group
     number on the LEDs for a second, then goes dark again &mdash; so a board whose sticker has come
     off can still be asked, out in the field, with no computer. The Hounds have no such button:
     theirs are the attenuator.
   </p>
   <p class="note">
     <strong>Running two hunts side by side?</strong> Give each one its own group so they do not
-    chase each other's Fox. Pick a group, set up that hunt's Fox and Hounds, then change the number
+    chase each other's Treasure. Pick a group, set up that hunt's Treasure and Hounds, then change the number
     and do the next hunt. The running total below keeps each group separate.
   </p>
   <p class="row">
@@ -182,9 +182,9 @@
   <h2>3. Set it up</h2>
   <div id="forecast" class="note"></div>
   <p class="row">
-    <button id="flash-fox" class="primary">Set up as Fox</button>
+    <button id="flash-fox" class="primary">Set up as Treasure</button>
     <button id="flash-hound" class="primary">Set up as Hound</button>
-    <button id="monitor-start">Check the Fox is working&hellip;</button>
+    <button id="monitor-start">Check the Treasure is working&hellip;</button>
   </p>
   <p id="tally" class="note" hidden></p>
   <div id="progress" class="card" hidden>
@@ -195,12 +195,12 @@
 </section>
 
 <section id="monitor-panel" hidden>
-  <h2>Check the Fox is working</h2>
+  <h2>Check the Treasure is working</h2>
   <p class="banner warn">
-    This turns the <em>connected</em> board into a listener so you can see what the Fox is
+    This turns the <em>connected</em> board into a listener so you can see what the Treasure is
     transmitting &mdash; useful before a session, or if a hunt is not working. It
     <strong>replaces the game</strong> on this board while it runs; put it back with the button
-    below when you have finished. Leave the Fox switched on somewhere nearby.
+    below when you have finished. Leave the Treasure switched on somewhere nearby.
   </p>
   <div id="monitor-out" class="card" aria-live="polite"></div>
   <p>
@@ -230,7 +230,7 @@
   </p>
   <p class="note">
     The <strong>hunt card</strong> is one side of A4 for a 20-minute game where the goal is simply
-    to find the Fox &mdash; the one to use for a club, a party, or a first go. The
+    to find the Treasure &mdash; the one to use for a club, a party, or a first go. The
     <strong>full worksheet</strong> is a 90-minute investigation with measurements and graphs, using
     this project's own field measurements. The <strong>plan</strong> is written for a Year 5&ndash;6
     science lesson and is mapped to the national curriculum, but its 20-minute running order and its
@@ -244,13 +244,13 @@
   <details open>
     <summary>Before you start</summary>
     <ul>
-      <li>Fresh or fully charged AAA cells in every board. The fox must last the whole session.</li>
+      <li>Fresh or fully charged AAA cells in every board. The Treasure must last the whole session.</li>
       <li><strong>Set the boards up before you leave</strong> if there is no wi-fi where you are
         playing. Once a board has the game on it, it needs nothing but its battery &mdash; this
         page is only for setting them up.</li>
-      <li>Fox and every hound on the <strong>same radio group</strong>. Label them.</li>
-      <li>Check the fox is dark &mdash; its display should be blank. That is how it hides.</li>
-      <li>Walk a hound 20&nbsp;m from the fox and confirm it still beeps before you hide anything.</li>
+      <li>Treasure and every hound on the <strong>same radio group</strong>. Label them.</li>
+      <li>Check the Treasure is dark &mdash; its display should be blank. That is how it hides.</li>
+      <li>Walk a hound 20&nbsp;m from the Treasure and confirm it still beeps before you hide anything.</li>
       <li>Agree the boundaries, a finish time, and what to do if someone gets lost.</li>
     </ul>
   </details>
@@ -264,7 +264,7 @@
       <li><strong>Button A</strong> turns the sensitivity down when the screen fills up, so you can
         keep tracking the last few metres. <strong>Button B</strong> resets it.</li>
       <li>The aerial points everywhere at once, so there is no direction arrow. Turn on the spot: your
-        own body blocks the signal, so when the reading dips, the fox is behind you.</li>
+        own body blocks the signal, so when the reading dips, the Treasure is behind you.</li>
     </ul>
   </details>
 
@@ -286,7 +286,7 @@
     <table>
       <thead><tr><th>Symptom</th><th>Likely cause</th></tr></thead>
       <tbody>
-        <tr><td>Hound is completely silent</td><td>Different radio group, out of range, or the fox's battery is flat. Check the group first &mdash; it is the only one of the three with no other symptom. Press either button on the Fox to see the group it is on.</td></tr>
+        <tr><td>Hound is completely silent</td><td>Different radio group, out of range, or the Treasure's battery is flat. Check the group first &mdash; it is the only one of the three with no other symptom. Press either button on the Treasure to see the group it is on.</td></tr>
         <tr><td>Screen blank but still beeping</td><td>Normal at longer range. Keep walking; the bars come back.</td></tr>
         <tr><td>Screen full, no sense of direction</td><td>Press button A to add attenuation.</td></tr>
         <tr><td>Board does nothing after flashing</td><td>Reflash it. If it was flashed from a downloaded .hex, check it is a V2.</td></tr>
@@ -305,7 +305,7 @@
     will simply not run, with nothing on screen to say why.
   </p>
   <p class="row">
-    <button id="dl-fox">Download Fox .hex</button>
+    <button id="dl-fox">Download Treasure .hex</button>
     <button id="dl-hound">Download Hound .hex</button>
   </p>
 </section>

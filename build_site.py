@@ -91,7 +91,7 @@ CALIBRATION = (
 TEACHING_PAGES = ("lesson-plan.html", "worksheet.html", "hunt-card.html")
 
 ROLE_LABELS = {
-    "fox": "Fox",
+    "fox": "Treasure",
     "hound": "Hound",
     "integration": "Radio monitor",
 }
