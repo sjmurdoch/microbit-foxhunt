@@ -405,3 +405,84 @@ def test_both_roles_take_the_group_from_one_place():
     assert RADIO_GROUP not in (0, 42)
     for filename in ("fox.py", "hound.py"):
         assert "from radio_config import RADIO_GROUP" in open(filename).read()
+
+
+# --- the fox's group reveal ------------------------------------------------
+
+def fox_ast():
+    import ast
+
+    return ast.parse(open("fox.py").read())
+
+
+def fox_display_calls(attrs):
+    """Calls to display.<attr> in fox.py, for the given attribute names."""
+    import ast
+
+    return [n for n in ast.walk(fox_ast())
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute) and n.func.attr in attrs
+            and isinstance(n.func.value, ast.Name) and n.func.value.id == "display"]
+
+
+def test_fox_shows_the_group_without_stopping_the_beacon():
+    """display.show blocks by default, and the digits take longer than
+    SIGNAL_TIMEOUT_MS. A blocking reveal would therefore silence and blank
+    every hound in the field each time someone checked the fox's group -- the
+    same trap as the blocking audio in hound.py."""
+    import ast
+
+    calls = fox_display_calls(("show", "scroll"))
+    assert calls, "the fox no longer shows anything"
+    for call in calls:
+        waits = [k.value for k in call.keywords if k.arg == "wait"]
+        assert waits and all(isinstance(v, ast.Constant) and v.value is False
+                             for v in waits), "display call at line %d blocks" % call.lineno
+
+    # The rest of the loop must stay inside the hound's patience too.
+    quiet = sum(n.args[0].value for n in ast.walk(fox_ast())
+                if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                and n.func.id == "sleep" and n.args
+                and isinstance(n.args[0], ast.Constant))
+    assert quiet < SIGNAL_TIMEOUT_MS, "a full fox cycle outlasts the hound's timeout"
+
+
+def test_fox_shows_the_configured_group():
+    """Not a literal. The whole point of the reveal is to answer "what group is
+    this board on?", so a hard-coded number would be worse than no display at
+    all -- it could disagree with what the board is actually transmitting on."""
+    import ast
+
+    shown = fox_display_calls(("show", "scroll"))
+    assert shown, "the fox no longer shows anything"
+    names = [d.id for call in shown for d in ast.walk(call.args[0])
+             if isinstance(d, ast.Name)]
+    assert "RADIO_GROUP" in names, "the fox shows something other than its group"
+
+
+def test_fox_goes_dark_again_after_showing_the_group():
+    """Stealth is the fox's one hard requirement. Lighting the display on a
+    button press is deliberate; leaving it lit -- after a press, or after being
+    knocked in a hedge -- would hand the game away."""
+    import ast
+
+    loop = [n for n in ast.walk(fox_ast()) if isinstance(n, ast.While)][0]
+    offs = [n.lineno for n in fox_display_calls(("off",))]
+    assert any(line < loop.lineno for line in offs), "the fox does not start dark"
+    assert any(line > loop.lineno for line in offs), "the fox never goes dark again"
+
+
+def test_fox_reads_both_buttons_unconditionally():
+    """was_pressed() clears a latch as it reads it. Behind `or` the second
+    button is only read when the first was not pressed, so a press on it would
+    sit in the latch and fire a spurious reveal on a later pass."""
+    import ast
+
+    for node in ast.walk(fox_ast()):
+        if not isinstance(node, ast.BoolOp):
+            continue
+        for inner in ast.walk(node):
+            assert not (isinstance(inner, ast.Call)
+                        and getattr(inner.func, "attr", None) == "was_pressed"), (
+                "fox.py reads a button inside a boolean expression at line %d"
+                % node.lineno)

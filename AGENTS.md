@@ -6,7 +6,7 @@ This document describes the Radio Treasure Hunt project -- the activity a hobbyi
 
 The system implements an "Amateur Radio Direction Finding" (ARDF) game using two BBC micro:bit v2 devices communicating over the 2.4 GHz radio band.
 
-1. **The Fox (Transmitter)**: a hidden beacon. To create proximity zones without asking the seeker to interpret raw radio data, it cycles its transmit power (max, medium, low) once every 200 ms.
+1. **The Fox (Transmitter)**: a hidden beacon. To create proximity zones without asking the seeker to interpret raw radio data, it cycles its transmit power (max, medium, low) once every 200 ms. It is dark apart from one deliberate exception: either button shows its radio group for about a second.
 2. **The Hound (Receiver)**: the player's tracker. It gives auditory feedback (a beep whose cadence and pitch indicate which zone the player is in) and visual feedback (a 5x5 LED bar graph of raw signal strength).
 
 ### Equipment and operating requirements
@@ -19,18 +19,25 @@ The system implements an "Amateur Radio Direction Finding" (ARDF) game using two
 
 Hounds are passive receivers, so **any number of players can hunt the same fox** without interfering with each other or with the fox.
 
-The fox must stay dark (no LED display) and run for **at least 2 hours on one charge**. That endurance requirement has never been measured — see section 8.
+The fox must stay dark while it is hidden and run for **at least 2 hours on one charge**. The one exception is the group reveal in section 2, which lasts about a second and only happens when someone presses a button. That endurance requirement has never been measured — see section 8.
 
 ## 2. Intended Functionality
 
 * **Audio zones (coarse tracking)**: closer to the fox, the hound starts hearing the weaker, lower-power beacons. Slow beep when only the strongest beacon is heard, medium beep for the middle beacon, rapid alarm when the weakest is detected.
 * **Visual bar graph (fine tracking)**: the LED matrix displays smoothed RSSI, using an exponential moving average to suppress multipath jitter while staying responsive to movement.
 * **The attenuator**: the bar graph saturates while the player is still some way from the fox. **Button A** adds attenuation so tracking can continue at close range; **Button B** resets it to zero.
+* **The group reveal (on the fox)**: either button shows the fox's radio group on its LEDs, one digit at a time, then the display goes dark again. A group mismatch is completely silent on the air, so before this the only way to ask a board what it was set to was to plug it into a computer -- no use once the fox is in a field and a sticker has come off. The hound has no equivalent: both its buttons belong to the attenuator.
 
 ## 3. Architecture & Code Mapping
 
 ### `fox.py` (the beacon)
 A short procedural script. It loops forever setting `radio.config(power=X)` and broadcasting `"Z1"`, `"Z2"`, `"Z3"`. It calls `display.off()` and clears any attached ZIP/NeoPixels on pin 0 so the fox stays hidden.
+
+The one thing that lights it up is the group reveal, and three details of it are load-bearing rather than stylistic:
+
+* **`display.show(..., wait=False)`.** A blocking show holds the digits for `GROUP_DIGIT_MS` each, which is longer than the hound's `SIGNAL_TIMEOUT_MS = 1000`, so the beacon would stop and *every* hound in the field would fall silent and blank each time someone checked the group. Same trap as the blocking audio in gotcha 7, and `test_fox_shows_the_group_without_stopping_the_beacon` pins it -- it also checks the loop's own sleeps still sum to under the timeout.
+* **`display.off()` inside the loop**, once the digits have played. Stealth is the fox's one hard requirement, and the reveal must survive being knocked in a hedge, not just being pressed on purpose.
+* **Both buttons are read every pass, into variables, not as `a or b`.** `was_pressed()` clears a latch as it reads it, so short-circuiting leaves button B's press stored to fire a spurious reveal on a later loop.
 
 ### `radio_config.py` (shared settings)
 Holds `RADIO_GROUP`, the one thing the fox and the hound must agree on. Imported by both so the value cannot drift; a test asserts no device file passes a literal `group=`. Avoid group 0 (the MicroPython default, so any unconfigured board sits on it) and 42 (what most tutorials use) — both invite collisions with other kit in the room.
@@ -285,6 +292,8 @@ Everything the web setup tool does was measured on hardware while it was built (
 
 **Needs boards and a field**
 
+* **The fox's group reveal, on a board.** Added 2026-09-07 with no micro:bit attached, so every claim about it is desk reasoning. Four things to watch: the digits are readable, the display goes properly dark afterwards, a hound a few metres away keeps beeping right through the reveal (this is what `wait=False` buys, and a blocking `display.show` would show up as a 1-2 s silence), and `display.show(..., delay=, wait=False)` is honoured at all by MicroPython 2.1.2 -- the asynchronous form is documented but was not exercised here.
+* **Re-measure `fox.py`'s digest.** `BOARD_DIGESTS["fox.py"]` in `test_site.py` is host-computed for the first time; the other four entries came off hardware. Read it back over the raw REPL from a flashed fox and put the measured value in, or the identify feature's fox arm is only proved against itself. While there, note that any board still running the pre-2026-09-07 fox will now identify as unknown device code rather than as a Fox, which is expected and is what the device-version stamp is for.
 * **An interrupted flash.** The claim that it fails loudly rather than silently is still reasoning, not measurement. Pull the cable mid-flash; recovery is one 23-second reflash, so this is cheap now.
 * **`make integration` after a browser flash.** `make devices` recovers on a retry, but the fuller tool has not been tried, because it needs a fox and an integration board at the same time.
 * **A WebUSB-flashed hound against a `make flash-hound` one**, at a fixed distance, to confirm that installing 2.1.2 has not moved the radio behaviour.

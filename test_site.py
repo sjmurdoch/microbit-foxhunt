@@ -113,11 +113,17 @@ def test_rendered_config_passes_the_device_code_rules(group):
 # 2.1.2) on 2026-09-06 via the raw REPL, from a board flashed by `make
 # flash-hound`. The host function must agree with the device's arithmetic or
 # identify is worthless.
+#
+# fox.py is the exception: it was measured on 2026-09-06 as 2507183434, and the
+# button reveal changed the file on 2026-09-07 with no board to hand. Its value
+# below is host-computed, so for that one file this test is self-consistent
+# rather than pinned -- the other four still hold the arithmetic to hardware.
+# Re-measure it on the next board (AGENTS.md section 8).
 BOARD_DIGESTS = {
     "radio_config.py": 3318680731,
     "hound_logic.py": 2215835840,
     "hound.py": 82801265,          # on the board as main.py
-    "fox.py": 2507183434,          # measured on the second board, as main.py
+    "fox.py": 216269340,           # host-computed 2026-09-07, not yet on a board
     "hound_integration.py": 1394167193,
 }
 
