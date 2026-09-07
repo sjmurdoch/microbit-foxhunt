@@ -536,7 +536,8 @@ async function init() {
 
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  // Relative, so it works under a project subpath such as /foxhunt/.
+  // Relative, so it works under a project subpath: the site is served from
+  // /radio-treasure-hunt/, not the domain root.
   navigator.serviceWorker.register("sw.js").then((reg) => {
     reg.addEventListener("updatefound", () => {
       const fresh = reg.installing;

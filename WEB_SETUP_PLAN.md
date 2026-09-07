@@ -350,7 +350,7 @@ Consequences, smaller than feared: the page should say "if a command-line tool r
 
 ~~**Q12.** Does the picker label the board "LPC1768" the first time?~~ **Not observed here.** Permissions were reset and the board still presented as `BBC micro:bit CMSIS-DAP`. Either it is version- or platform-specific, or it no longer happens. **Do not put "it may say LPC1768" in the UI copy on the strength of a support page alone** — say what these boards actually showed, and revisit only if someone reports otherwise.
 
-**Q13. Does the service worker scope work under the `github.io` project subpath?** The site lands at `https://<user>.github.io/foxhunt/`, so paths must be relative and the worker's scope is `/foxhunt/`. A classic way to ship something that works on `localhost` and not in production. Cannot be settled locally.
+**Q13. Does the service worker scope work under the `github.io` project subpath?** The site lands at `https://<user>.github.io/radio-treasure-hunt/`, so paths must be relative and the worker's scope is that subpath. A classic way to ship something that works on `localhost` and not in production. Cannot be settled locally.
 
 **Q14. Is WebUSB available on a school Chromebook?** Probably the most common deployment target, and untested.
 
@@ -388,7 +388,7 @@ Sources: the Micro:bit Foundation's developer and support sites, and the shipped
 
 **Deployment**
 
-13. Pages serves at `https://<user>.github.io/foxhunt/`, so every asset path must be relative (Q13).
+13. Pages serves at `https://<user>.github.io/radio-treasure-hunt/`, so every asset path must be relative (Q13).
 14. A shallow checkout breaks the device-code stamp; `fetch-depth: 0`.
 15. Pages cannot set custom headers. Nothing here needs any, but cache-bust by putting the stamp in asset filenames.
 16. A service worker keyed on anything but the build stamp serves a stale site indefinitely.
