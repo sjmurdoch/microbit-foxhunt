@@ -19,7 +19,7 @@ Two things this file exists to prevent:
   byte, so the two cannot drift.
 
 The page carries two versions and they move independently -- the flasher itself,
-and the device code it writes. See WEB_SETUP_PLAN.md section 2.
+and the device code it writes. See archive/WEB_SETUP_PLAN.md section 2.
 """
 import argparse
 import hashlib

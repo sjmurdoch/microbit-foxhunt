@@ -301,7 +301,7 @@ The same shape of bug hit the display: `BAR_COUNT` meant both "how many bars" an
 
 ### Web setup tool: not yet settled
 
-Everything the web setup tool does was measured on hardware while it was built (see the table in section 5). What follows is what is left, roughly in the order it is worth doing. `WEB_SETUP_PLAN.md` section 9 carries the detail and the reasoning.
+Everything the web setup tool does was measured on hardware while it was built (see the table in section 5). What follows is what is left, roughly in the order it is worth doing. `archive/WEB_SETUP_PLAN.md` section 9 carries the reasoning as it stood while the tool was built; this list is the live one.
 
 **Needs boards and a field**
 
@@ -311,12 +311,14 @@ Everything the web setup tool does was measured on hardware while it was built (
 * **`make integration` after a browser flash.** `make devices` recovers on a retry, but the fuller tool has not been tried, because it needs a fox and an integration board at the same time.
 * **The serial-buffer collision behind the browser's gotcha 10.** Read out of the code on 2026-09-08 and never provoked. It is worth provoking, because it is the one failure the boot check is blind to by construction: start the radio monitor, then flash that same board underneath it with `withBoard`'s `monitor.stop()` removed, and confirm the page reports a board that is not running as set up and running. Put the line back afterwards.
 * **A WebUSB-flashed hound against a `make flash-hound` one**, at a fixed distance, to confirm that installing 2.1.2 has not moved the radio behaviour.
+* **A command-line tool holding the port while the browser reads serial.** Gotcha 6 above is the other direction -- the CLI just after a browser flash -- and it recovers on a retry. This one has never been tried: hold the port with `flash.py list` or `screen`, then read serial from the page. The two do not fight to claim the interface, they fight for the data, which is what the library saturating the CDC buffers is for.
 * **A radio group other than 16.** The group is address matching rather than RF channel, so propagation should not change — but the whole calibration was taken on 16, and the group picker is now a headline feature with a per-group tally built on it.
 * **The teaching materials with real children.** None of the four cognitive walkthroughs is a substitute for watching a class use the worksheet or a pack use the hunt card. This is the acceptance test for all of it.
 
 **Needs a different machine**
 
 * **Offline operation is half verified.** 2026-09-08: with the local server stopped, the page and every device source loaded from cache and the UI came up correctly (section 5). What is still unverified is the part that matters most — flashing a board with no network — and it now has a known obstacle rather than an unknown one: the MicroPython image is not cached until the first flash, so the test has to be *load the page, flash one board, disconnect, flash another*. A real disconnected machine, not a stopped localhost server. Until that is done, **do not claim on the site that the page works offline** — the wording there deliberately says a flashed board needs only its battery, which is true and independently useful.
+* **The service worker under the `github.io` project subpath.** Everything about it was exercised on `localhost`, where the site sits at the root; deployed it sits at `/radio-treasure-hunt/`, which is the worker's scope. A site that works locally and not in production is the classic way to ship this, and it cannot be settled locally -- open the deployed page, reload it, and confirm the bundle and the device sources come from the worker rather than 404ing.
 * **A Chromebook**, probably the commonest school deployment and still untested.
 * **Print rendering on Linux and Windows.** The hunt card has to fit one side of paper. It fits with about 21 mm to spare on macOS, but Georgia is missing on most Linux systems and the fallback serif is taller — the card passed locally and came out at two pages on the CI runner. **CI is the arbiter, not your own printer**, and anyone editing that card should expect to be told so.
 
@@ -369,3 +371,4 @@ Distilled from what actually went wrong here, not from general principle.
 * `fox_hunt_plan.md` — the original design and implementation plan. Everything in it is either built, superseded by measurements in section 4, or carried into the sections above.
 * `FIX_PLAN.md` — the remediation plan for the 2026-09-05 code review and field test. All stages complete.
 * `FIX_PLAN_REVIEW.md` — the remediation plan for the 2026-09-06 whole-project review, which produced the sentinel fix, the matrix-size fix and the tooling work in sections 5 and 9. All fifteen findings addressed.
+* `WEB_SETUP_PLAN.md` — the plan the web setup tool was built from, archived 2026-09-08. Stages 1-8 of its section 11 are built and its measurements are in sections 5 and 8 above; what remains of its section 9 is carried in section 8, so read it for how a decision was reached rather than for what is still open.

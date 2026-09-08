@@ -51,7 +51,7 @@ The hidden board is the `fox` everywhere it is machinery — `fox.py`, `make fla
 
 ## Documentation
 
-[`AGENTS.md`](AGENTS.md) is the real documentation: the design, the radio characteristics measured on actual boards, the hardware gotchas that cost the most time, and the rules this codebase is maintained by. Read it before changing anything — several of the things it records look like details and are load-bearing. `CLAUDE.md` is a symlink to it. [`WEB_SETUP_PLAN.md`](WEB_SETUP_PLAN.md) and [`COGNITIVE-WALKTHROUGHS.md`](COGNITIVE-WALKTHROUGHS.md) cover the browser setup tool and the teaching materials; `archive/` holds superseded working documents.
+[`AGENTS.md`](AGENTS.md) is the real documentation: the design, the radio characteristics measured on actual boards, the hardware gotchas that cost the most time, and the rules this codebase is maintained by. Read it before changing anything — several of the things it records look like details and are load-bearing. `CLAUDE.md` is a symlink to it. [`COGNITIVE-WALKTHROUGHS.md`](COGNITIVE-WALKTHROUGHS.md) covers the teaching materials; `archive/` holds superseded working documents, including [`WEB_SETUP_PLAN.md`](archive/WEB_SETUP_PLAN.md), the plan the browser setup tool was built from.
 
 ## Licence
 

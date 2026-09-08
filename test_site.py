@@ -1,7 +1,7 @@
 """Tests for the web flasher's build step.
 
 Pure Python: no board, no browser, no network. Anything needing hardware is on
-the integration checklist in WEB_SETUP_PLAN.md section 9.
+the integration checklist in archive/WEB_SETUP_PLAN.md section 9.
 
 The interesting assertions here are the ones pinned to hardware. The digests in
 test_device_digest_matches_the_board came off a real micro:bit on 2026-09-06,

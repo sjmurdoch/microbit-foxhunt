@@ -1,6 +1,6 @@
 # Web setup tool on GitHub Pages — plan
 
-Status: not started. Written 2026-09-06.
+Status: built and archived 2026-09-08. Written 2026-09-06; stages 1-8 of section 11 were implemented between 2026-09-06 and 2026-09-08 and the measured results are in `AGENTS.md` sections 5 and 8, which is where the outstanding work is now tracked. What follows is the reasoning as it stood while the tool was built, not current guidance.
 
 Evidence markers used throughout: **[measured]** — run here on this machine, with the numbers; **[source]** — read out of the shipped library code, not merely its documentation; **[unverified]** — believed from vendor documentation or reasoning, and not yet settled. Section 9 lists everything still in the third category.
 
