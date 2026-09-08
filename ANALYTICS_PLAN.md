@@ -44,7 +44,7 @@ The audience is children in schools and Scout groups, and a teacher may have to 
 
 * **No cookies, no `localStorage`, no persistent identifier of any kind.** GoatCounter identifies a repeat visit server-side with a rotating, non-identifiable hash **[source: goatcounter.com/help, read 2026-09-08]**; nothing is stored on the visitor's device. Storing nothing on the device is also what keeps this outside PECR's consent rules, so the site needs no cookie banner.
 * **No third-party script and no third-party request.** The beacon goes to the project owner's own host.
-* **Do Not Track and Global Privacy Control are honoured**, and honoured by not sending anything at all rather than by sending a flag.
+* **Nothing collected is sold or shared.** The counting exists to tell whether the site is used; there is no third party to share it with, and no plan to acquire one. Do Not Track is not honoured -- it was withdrawn as a standard and no longer means anything -- and Global Privacy Control is a signal about selling and sharing data, which this site does not do.
 * **A fixed event allowlist.** The client can only ever send one of a known set of strings, listed in one place and pinned by a test. This is the guard that matters most: the page holds a board's DAPLink serial number, which is a hardware identifier, and an allowlist makes it impossible for a future edit to beacon it by accident.
 * **Data minimisation over completeness.** The radio group is reported as `group/default` or `group/other`, never the number itself: whether organisers move off the default is the open question, and the specific value answers nothing further.
 * **It says so on the page.** A short "What this page counts" note, in plain words, listing what is sent.
@@ -85,7 +85,7 @@ Page views are not impact. What the project owner has to be able to say is how m
 **And what it does not license.** This matters more than the table, because the numbers will end up in a report where someone may push back on them.
 
 * **A prepared hunt is not a played hunt.** `hunt/ready` says boards were set up, and nothing at all about whether a game happened, whether children enjoyed it, or whether anyone learned anything. The acceptance test for that is still watching a class use it -- AGENTS.md section 8 says so and analytics does not change it.
-* **Everything here undercounts, by an unknown amount.** Blockers, Do Not Track, and a school network that blocks the stats host all remove real use from the figures, and the last of those is likeliest in exactly the population being measured. Treat every number as a floor.
+* **Everything here undercounts, by an unknown amount.** Blockers and a school network that blocks the stats host both remove real use from the figures, and the second is likeliest in exactly the population being measured. Treat every number as a floor.
 * **Offline use is invisible.** The page is built to work in a field with no network, and a beacon sent there never arrives. A hunt run entirely from a cached page counts as nothing.
 * **Site-level totals are not the hunt's.** Because this is counted inside the personal site, the dashboard's unfiltered totals, and its browser and country breakdowns, mix the hunt with everything else on `murdoch.is`. Filter by the namespace before quoting any number as the hunt's.
 * **A session is one page load, not a person.** Someone who sets up boards over two visits is two sessions; nothing joins them, deliberately.

@@ -9,8 +9,6 @@
  *    on the visitor's device, which is also what keeps this outside PECR's
  *    consent rules -- so the site needs no cookie banner. Repeat visits are
  *    counted server-side by GoatCounter's own rotating, non-identifiable hash.
- *  - Do Not Track and Global Privacy Control are honoured by sending nothing at
- *    all, rather than by sending a flag that says not to count it.
  *  - EVENTS is a closed set. The page holds a board's DAPLink serial number,
  *    which is a hardware identifier; an allowlist is what makes it impossible
  *    for a later edit to beacon it by accident. test_site.py checks that every
@@ -63,11 +61,6 @@ export function enabled() {
   try {
     if (!ENDPOINT || !HOSTS.length) return false;
     if (HOSTS.indexOf(location.hostname) === -1) return false;
-    if (navigator.globalPrivacyControl === true) return false;
-    // globalThis rather than window: identical in a browser, and it keeps this
-    // readable outside one, which is where the tests run it.
-    const dnt = navigator.doNotTrack || globalThis.doNotTrack || navigator.msDoNotTrack;
-    if (dnt === "1" || dnt === "yes") return false;
     return true;
   } catch (e) {
     return false;

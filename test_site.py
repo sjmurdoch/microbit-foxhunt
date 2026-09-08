@@ -1586,7 +1586,7 @@ def test_no_user_facing_page_is_titled_a_fox_hunt():
 # Two halves. The Python half is the build's own contract: off by default, a
 # consistent override order, and an event vocabulary derived from flash.ROLES.
 # The JavaScript half is run in node against a stubbed DOM, because what matters
-# is not that the source mentions Do Not Track but that a request is not made.
+# is not what the source says but which requests are actually made.
 #
 # The design and the reasoning are in ANALYTICS_PLAN.md.
 
@@ -1597,9 +1597,6 @@ ANALYTICS_JS = os.path.join(HERE, "web", "src", "analytics.js")
 ANALYTICS_STUB = """
 const sent = [];
 globalThis.location = { hostname: %s, pathname: "/" };
-// Node 21+ ships a read-only `navigator` global, so this one has to be defined
-// over the top of it rather than assigned.
-Object.defineProperty(globalThis, "navigator", { value: %s, configurable: true });
 globalThis.screen = { width: 1280, height: 800 };
 globalThis.devicePixelRatio = 2;
 globalThis.document = {
@@ -1615,7 +1612,7 @@ globalThis.document = {
 """
 
 
-def run_analytics(body, tmp_path, config, hostname="sjmurdoch.github.io", navigator="{}"):
+def run_analytics(body, tmp_path, config, hostname="sjmurdoch.github.io"):
     """Run analytics.js under node with the config esbuild would have injected."""
     node = shutil.which("node")
     if node is None:
@@ -1624,7 +1621,7 @@ def run_analytics(body, tmp_path, config, hostname="sjmurdoch.github.io", naviga
     module = tmp_path / "analytics.mjs"
     module.write_text(source)
     script = tmp_path / "check.mjs"
-    script.write_text((ANALYTICS_STUB % (json.dumps(hostname), navigator)) +
+    script.write_text((ANALYTICS_STUB % json.dumps(hostname)) +
                       "const a = await import(%s);\n%s\n"
                       % (json.dumps("file://" + str(module)), body))
     done = subprocess.run([node, str(script)], capture_output=True, cwd=HERE)
@@ -1730,17 +1727,6 @@ def test_analytics_sends_nothing_from_another_host(tmp_path):
     assert got == []
 
 
-@pytest.mark.parametrize("navigator", ['{"doNotTrack": "1"}',
-                                       '{"globalPrivacyControl": true}'])
-def test_analytics_honours_do_not_track(tmp_path, navigator):
-    """Honoured by sending nothing at all, rather than by sending a flag that
-    asks not to be counted."""
-    got = run_analytics("a.pageview(); a.event('monitor/start');"
-                        "console.log(JSON.stringify(sent));",
-                        tmp_path, LIVE, navigator=navigator)
-    assert got == []
-
-
 def test_analytics_drops_an_event_that_is_not_in_the_allowlist(tmp_path):
     got = run_analytics("a.event('board/serial/9906360200052820726e40a4');"
                         "console.log(JSON.stringify(sent));", tmp_path, LIVE)
@@ -1829,7 +1815,7 @@ def test_the_page_identity_survives_the_site_moving(tmp_path, pathname, expected
     source = open(ANALYTICS_JS).read().replace("__ANALYTICS__", json.dumps(LIVE))
     (tmp_path / "analytics.mjs").write_text(source)
     (tmp_path / "check.mjs").write_text(
-        (stub % (json.dumps("sjmurdoch.github.io"), "{}")) +
+        (stub % json.dumps("sjmurdoch.github.io")) +
         "const a = await import(%s);\nconsole.log(JSON.stringify(a.pagePath()));"
         % json.dumps("file://" + str(tmp_path / "analytics.mjs")))
     done = subprocess.run([node, str(tmp_path / "check.mjs")], capture_output=True, cwd=HERE)
@@ -1897,7 +1883,7 @@ def test_the_page_says_what_it_counts():
     page = render("index.html")
     note = " ".join(page.split('<details id="counting"')[1]
                     .split("</details>")[0].split())
-    for phrase in ("No cookies", "Do Not Track", "Global Privacy Control",
+    for phrase in ("No cookies",
                    "serial numbers", "printed", "connected", "set up",
                    "radio monitor", "radio group", "playable hunt",
                    "can only download a file"):
