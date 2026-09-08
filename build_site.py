@@ -96,6 +96,117 @@ ROLE_LABELS = {
     "integration": "Radio monitor",
 }
 
+# --- analytics --------------------------------------------------------------
+#
+# Off unless an endpoint is configured, and the default is no endpoint, so a
+# fork and a local `make site` send nothing without anyone having to remember.
+# See ANALYTICS_PLAN.md for the design and web/src/analytics.js for what the
+# client will and will not send.
+ANALYTICS_SECTION = ("tool", "foxhunt", "analytics")
+ANALYTICS_ENV_ENDPOINT = "FOXHUNT_ANALYTICS_ENDPOINT"
+ANALYTICS_ENV_HOSTS = "FOXHUNT_ANALYTICS_HOSTS"
+
+# Event names that do not depend on a role. The role-shaped ones are generated
+# from flash.ROLES below, so adding a role adds its events rather than needing
+# them written out a second time -- AGENTS.md section 9.
+ANALYTICS_EVENTS = (
+    "connect/ok",
+    "connect/refused-v1",
+    "connect/failed",
+    "flash/offline",
+    "identify/unknown",
+    "boot-check/failed",
+    "monitor/start",
+    # Whether this browser can flash at all, feature-detected rather than
+    # guessed from the user agent -- Chrome on iOS has no WebUSB, and a Linux
+    # Chromium can be missing udev rules. This is the size of the population
+    # whose only route is the .hex download (AGENTS.md section 8).
+    "webusb/available",
+    "webusb/unsupported",
+    "group/default",
+    "group/other",
+    # Reach and impact. Each fires at most once per session -- see the comment
+    # on session() in web/src/analytics.js, and "Reading impact" in
+    # ANALYTICS_PLAN.md for what these do and do not license anyone to claim.
+    "session/boards/1",
+    "session/boards/2-4",
+    "session/boards/5-9",
+    "session/boards/10+",
+    "hunt/ready",
+) + tuple("print/%s" % os.path.splitext(name)[0] for name in TEACHING_PAGES)
+
+
+def analytics_events(roles=None):
+    """The closed set of event names the site may send.
+
+    A closed set is the guard that matters: the page holds a board's DAPLink
+    serial number, and an allowlist is what stops a later edit beaconing it.
+    """
+    roles = ROLES if roles is None else roles
+    names = list(ANALYTICS_EVENTS)
+    for role in sorted(roles):
+        names += ["flash/%s/ok" % role, "flash/%s/failed" % role,
+                  "identify/%s" % role, "download/%s" % role]
+    return sorted(names)
+
+
+def _pyproject_analytics():
+    """Read [tool.foxhunt.analytics] out of pyproject.toml, if it is there.
+
+    tomllib is 3.11+, and pyproject says >=3.9. Rather than fail a build on an
+    older interpreter, an unreadable file means "unconfigured" -- but a
+    configured section that cannot be read would be a silent loss of analytics,
+    so that case stops the build instead.
+    """
+    path = os.path.join(HERE, "pyproject.toml")
+    if not os.path.exists(path):
+        return {}
+    try:
+        import tomllib
+    except ImportError:
+        with open(path, "rb") as fh:
+            if b"[tool.foxhunt.analytics]" in fh.read():
+                sys.exit("pyproject.toml configures analytics but this Python has no "
+                         "tomllib (3.11+). Upgrade, or pass --analytics-endpoint.")
+        return {}
+    with open(path, "rb") as fh:
+        data = tomllib.load(fh)
+    for key in ANALYTICS_SECTION:
+        data = data.get(key, {})
+    return data
+
+
+def analytics_config(endpoint=None, hosts=None, disabled=False, env=None):
+    """Resolve the analytics settings.
+
+    Precedence is the project rule for every setting here: command line, then
+    environment, then the TOML file, then off.
+    """
+    env = os.environ if env is None else env
+    if disabled:
+        return {"endpoint": "", "hosts": [], "events": analytics_events()}
+
+    from_file = _pyproject_analytics()
+    if endpoint is None:
+        endpoint = env.get(ANALYTICS_ENV_ENDPOINT, from_file.get("endpoint", ""))
+    if hosts is None:
+        raw = env.get(ANALYTICS_ENV_HOSTS)
+        hosts = raw.split(",") if raw else from_file.get("hosts", [])
+    if isinstance(hosts, str):
+        hosts = hosts.split(",")
+    hosts = [h.strip() for h in hosts if h.strip()]
+
+    endpoint = (endpoint or "").strip()
+    if endpoint and not endpoint.startswith("https://"):
+        # http:// would be blocked as mixed content on the deployed page anyway,
+        # so a typo here is worth stopping the build for rather than shipping a
+        # beacon that silently never arrives.
+        sys.exit("analytics endpoint must be https://, got %r" % endpoint)
+    if endpoint and not hosts:
+        sys.exit("analytics endpoint is set but no hosts are, so nothing would "
+                 "ever be sent. Set hosts, or --no-analytics.")
+    return {"endpoint": endpoint, "hosts": hosts, "events": analytics_events()}
+
 
 def device_digest(data):
     """The fingerprint the board computes over one of its own files.
@@ -384,20 +495,35 @@ def check_micropython():
     return path, data
 
 
-def bundle(out, stamp):
-    """Bundle the JavaScript with esbuild.
+def bundle(out, stamp, entry="main.js", prefix="app", analytics=None):
+    """Bundle one JavaScript entry point with esbuild.
 
     Fails loudly rather than quietly producing a site with no flasher in it.
+
+    Two entry points share this: the setup page and the teaching pages. They
+    have one file in common, analytics.js, and bundling the second is what keeps
+    that at one copy -- the teaching pages used to load a hand-copied script.
+
+    The analytics settings arrive through --define rather than a fetch, so there
+    is no configuration request to fail on a field laptop, and a build with no
+    endpoint compiles the beacon away to a constant false.
     """
-    entry = os.path.join(WEB, "src", "main.js")
-    target = os.path.join(out, "app.%s.js" % stamp)
+    source = os.path.join(WEB, "src", entry)
+    target = os.path.join(out, "%s.%s.js" % (prefix, stamp))
     npx = shutil.which("npx")
     if npx is None:
         sys.exit("npx not found. Install Node, then run 'npm ci'.")
     if not os.path.isdir(os.path.join(HERE, "node_modules")):
         sys.exit("node_modules is missing. Run 'npm ci' first.")
-    cmd = [npx, "esbuild", entry, "--bundle", "--format=iife",
-           "--outfile=" + target, "--log-level=warning"]
+    # es2019 rather than esbuild's default of "whatever the source says". The
+    # bundle carried optional chaining, which is ES2020, so Safari 13.0 and
+    # older Firefox failed to parse the whole file -- and a parse error is not a
+    # degraded page, it is no JavaScript at all: dead controls, an empty group
+    # box, no .hex download and no analytics, on exactly the browsers whose only
+    # route is the .hex download. WebUSB itself stays a runtime check.
+    cmd = [npx, "esbuild", source, "--bundle", "--format=iife", "--target=es2019",
+           "--outfile=" + target, "--log-level=warning",
+           "--define:__ANALYTICS__=" + json.dumps(analytics or analytics_config(disabled=True))]
     result = subprocess.run(cmd, cwd=HERE)
     if result.returncode != 0:
         sys.exit("esbuild failed (%d)." % result.returncode)
@@ -413,10 +539,12 @@ def write(path, data):
         fh.write(data)
 
 
-def build(out=DEFAULT_OUT, run_bundle=True):
+def build(out=DEFAULT_OUT, run_bundle=True, analytics=None):
     sources = device_sources()
     manifest = build_manifest(sources)
     stamp = manifest["site"]["short"]
+    if analytics is None:
+        analytics = analytics_config(disabled=True)
 
     if os.path.isdir(out):
         shutil.rmtree(out)
@@ -431,16 +559,21 @@ def build(out=DEFAULT_OUT, run_bundle=True):
     write(os.path.join(out, "manifest.json"), json.dumps(manifest, indent=1) + "\n")
 
     values = substitutions(manifest)
-    script = bundle(out, stamp) if run_bundle else "app.js"
+    if run_bundle:
+        script = bundle(out, stamp, analytics=analytics)
+        teaching_script = bundle(out, stamp, entry="teaching.js", prefix="teaching",
+                                 analytics=analytics)
+    else:
+        script, teaching_script = "app.js", "teaching.js"
 
     page = apply(open(os.path.join(WEB, "index.html")).read(), values)
     write(os.path.join(out, "index.html"), page.replace("__SCRIPT__", script))
 
     for name in TEACHING_PAGES:
-        write(os.path.join(out, name),
-              apply(open(os.path.join(WEB, name)).read(), values))
+        page = apply(open(os.path.join(WEB, name)).read(), values)
+        write(os.path.join(out, name), page.replace("__TEACHING_SCRIPT__", teaching_script))
 
-    for name in ("app.css", "teaching.css", "teaching.js"):
+    for name in ("app.css", "teaching.css"):
         shutil.copyfile(os.path.join(WEB, name), os.path.join(out, name))
 
     sw = open(os.path.join(WEB, "src", "sw.js")).read().replace("__STAMP__", stamp)
@@ -454,15 +587,30 @@ def main():
     ap.add_argument("--out", default=DEFAULT_OUT, help="output directory")
     ap.add_argument("--no-bundle", action="store_true",
                     help="skip esbuild (the page will not work; for checking the rest)")
+    # Command line beats environment beats pyproject.toml beats off.
+    ap.add_argument("--analytics-endpoint", metavar="URL",
+                    help="GoatCounter /count endpoint (overrides $%s)" % ANALYTICS_ENV_ENDPOINT)
+    ap.add_argument("--analytics-hosts", metavar="HOST,HOST",
+                    help="only beacon when served from these hostnames (overrides $%s)"
+                         % ANALYTICS_ENV_HOSTS)
+    ap.add_argument("--no-analytics", action="store_true",
+                    help="build with no beacon at all, whatever is configured")
     args = ap.parse_args()
 
-    manifest, out = build(args.out, run_bundle=not args.no_bundle)
+    analytics = analytics_config(endpoint=args.analytics_endpoint,
+                                 hosts=args.analytics_hosts,
+                                 disabled=args.no_analytics)
+    manifest, out = build(args.out, run_bundle=not args.no_bundle, analytics=analytics)
     print("site      %s" % out)
     print("flasher   %s  %s" % (manifest["site"]["short"], manifest["site"]["date"]))
     print("device    %s  (%s  %s)" % (manifest["device"]["version"],
                                       manifest["device"]["short"],
                                       manifest["device"]["date"]))
     print("roles     %s" % ", ".join(sorted(manifest["roles"])))
+    # Printed so a build that quietly lost its analytics shows up in the CI log
+    # rather than only on a dashboard that stops moving.
+    print("analytics %s" % (("%s (%s)" % (analytics["endpoint"], ", ".join(analytics["hosts"])))
+                            if analytics["endpoint"] else "off"))
     return 0
 
 

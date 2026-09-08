@@ -11,6 +11,19 @@ dev = [
     "pyserial>=3.5",
 ]
 
+# Usage counting for the published site. See ANALYTICS_PLAN.md for the design
+# and web/src/analytics.js for exactly what is and is not sent.
+#
+# Empty endpoint = no beacon at all, and that is what a fork or a local build
+# gets: `hosts` is a second, independent guard, so even a fork that keeps this
+# configuration sends nothing, because it is served from a different host.
+# Overridable consistently: --analytics-endpoint / --analytics-hosts on the
+# command line beat $FOXHUNT_ANALYTICS_ENDPOINT / $FOXHUNT_ANALYTICS_HOSTS,
+# which beat this file. --no-analytics builds with no beacon whatever is set.
+[tool.foxhunt.analytics]
+endpoint = "https://murdoch.is/count"
+hosts = ["sjmurdoch.github.io"]
+
 [tool.pytest.ini_options]
 # Only collect real unit tests. The hardware helpers (integration_check.py,
 # calibrate.py) are run by hand and must never be collected as tests -- their

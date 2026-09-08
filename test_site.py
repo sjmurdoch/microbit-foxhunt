@@ -31,6 +31,8 @@ from build_site import (
     MONITOR_RX,
     MONITOR_START,
     ROLE_LABELS,
+    analytics_config,
+    analytics_events,
     build_manifest,
     device_code_version,
     device_digest,
@@ -643,7 +645,10 @@ TEACHING = ("lesson-plan.html", "worksheet.html", "hunt-card.html")
 
 def render(name):
     from build_site import apply, substitutions
-    return apply(open(os.path.join("web", name)).read(), substitutions(build_manifest()))
+    # build() fills the script name in separately, because it is only known once
+    # esbuild has stamped it. Mirrored here so a real leftover still shows up.
+    return (apply(open(os.path.join("web", name)).read(), substitutions(build_manifest()))
+            .replace("__TEACHING_SCRIPT__", "teaching.js"))
 
 
 @pytest.mark.parametrize("name", TEACHING)
@@ -1528,10 +1533,10 @@ def test_the_fox_emoji_is_never_used():
     """A fox on a page that calls the hidden board the Treasure is a leftover,
     and the whole point of the rename is that nobody has to explain a fox to a
     child. U+1F98A is banned outright -- literal or numeric reference."""
-    for name in ("app.css", "teaching.css", "teaching.js",
-                 "index.html") + TEACHING + tuple(
-                     os.path.join("src", js) for js in
-                     ("main.js", "monitor.js", "device.js", "flasher.js", "serial.js")):
+    for name in ("app.css", "teaching.css", "index.html") + TEACHING + tuple(
+            os.path.join("src", js) for js in
+            ("main.js", "monitor.js", "device.js", "flasher.js", "serial.js",
+             "teaching.js", "analytics.js")):
         source = open(os.path.join("web", name), encoding="utf-8").read()
         assert "\U0001f98a" not in source.lower(), name
         assert "&#129418;" not in source, name
@@ -1574,3 +1579,280 @@ def test_no_user_facing_page_is_titled_a_fox_hunt():
         for groups in named.findall(render(name)):
             chunk = "".join(groups)
             assert "fox hunt" not in chunk.lower(), (name, chunk[:80])
+
+
+# --- analytics --------------------------------------------------------------
+#
+# Two halves. The Python half is the build's own contract: off by default, a
+# consistent override order, and an event vocabulary derived from flash.ROLES.
+# The JavaScript half is run in node against a stubbed DOM, because what matters
+# is not that the source mentions Do Not Track but that a request is not made.
+#
+# The design and the reasoning are in ANALYTICS_PLAN.md.
+
+ANALYTICS_JS = os.path.join(HERE, "web", "src", "analytics.js")
+
+# A DOM small enough to be obviously right, capturing every URL the module tries
+# to fetch. The image is what the beacon actually is, so the stub is an image.
+ANALYTICS_STUB = """
+const sent = [];
+globalThis.location = { hostname: %s, pathname: "/" };
+// Node 21+ ships a read-only `navigator` global, so this one has to be defined
+// over the top of it rather than assigned.
+Object.defineProperty(globalThis, "navigator", { value: %s, configurable: true });
+globalThis.screen = { width: 1280, height: 800 };
+globalThis.devicePixelRatio = 2;
+globalThis.document = {
+  title: "Radio Treasure Hunt",
+  referrer: "https://example.org/",
+  createElement: () => ({
+    style: {}, parentNode: null,
+    setAttribute() {}, addEventListener() {},
+    set src(url) { sent.push(url); },
+  }),
+  body: { appendChild() {} },
+};
+"""
+
+
+def run_analytics(body, tmp_path, config, hostname="sjmurdoch.github.io", navigator="{}"):
+    """Run analytics.js under node with the config esbuild would have injected."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed; the JavaScript half cannot be checked")
+    source = open(ANALYTICS_JS).read().replace("__ANALYTICS__", json.dumps(config))
+    module = tmp_path / "analytics.mjs"
+    module.write_text(source)
+    script = tmp_path / "check.mjs"
+    script.write_text((ANALYTICS_STUB % (json.dumps(hostname), navigator)) +
+                      "const a = await import(%s);\n%s\n"
+                      % (json.dumps("file://" + str(module)), body))
+    done = subprocess.run([node, str(script)], capture_output=True, cwd=HERE)
+    if done.returncode != 0:
+        pytest.fail(done.stderr.decode("utf-8", "replace"))
+    return json.loads(done.stdout.decode("utf-8"))
+
+
+LIVE = {"endpoint": "https://stats.example.org/count",
+        "hosts": ["sjmurdoch.github.io"],
+        "events": analytics_events()}
+
+
+def test_analytics_is_off_unless_an_endpoint_is_configured():
+    """The default, and what protects a fork: nothing configured, nothing sent.
+    A local `make site` and `make site-serve` are covered by the same rule."""
+    off = analytics_config(disabled=True)
+    assert off["endpoint"] == ""
+    assert off["hosts"] == []
+
+
+def test_analytics_settings_have_one_precedence_order():
+    """The project rule for every setting here: command line, then environment,
+    then the file. Asserted rather than assumed, because the deploy sets one and
+    a developer overriding it locally must win."""
+    env = {"FOXHUNT_ANALYTICS_ENDPOINT": "https://env.example/count",
+           "FOXHUNT_ANALYTICS_HOSTS": "env.example"}
+    from_env = analytics_config(env=env)
+    assert from_env["endpoint"] == "https://env.example/count"
+    assert from_env["hosts"] == ["env.example"]
+
+    from_cli = analytics_config(endpoint="https://cli.example/count",
+                                hosts="cli.example", env=env)
+    assert from_cli["endpoint"] == "https://cli.example/count"
+    assert from_cli["hosts"] == ["cli.example"]
+
+    # And --no-analytics beats all of it.
+    assert analytics_config(endpoint="https://cli.example/count",
+                            disabled=True, env=env)["endpoint"] == ""
+
+
+def test_analytics_refuses_a_plain_http_endpoint():
+    """It would be blocked as mixed content on the deployed page, so a beacon
+    that never arrives is the failure mode. Stop the build instead."""
+    with pytest.raises(SystemExit):
+        analytics_config(endpoint="http://stats.example.org/count",
+                         hosts="example.org", env={})
+
+
+def test_analytics_refuses_an_endpoint_with_no_hosts():
+    """Configured but unsendable is the worst of both: it looks on and is off."""
+    with pytest.raises(SystemExit):
+        analytics_config(endpoint="https://stats.example.org/count", hosts="", env={})
+
+
+def test_every_event_name_the_javascript_sends_is_in_the_allowlist():
+    """The guard that matters. The page holds a board's DAPLink serial number,
+    and a closed set is what makes it impossible for a later edit to beacon it.
+    Role-shaped names are built by the helpers in analytics.js, which is why
+    those are the only non-literal ones -- so this scan can see them all."""
+    allowed = set(analytics_events())
+    literals = set()
+    for name in ("main.js", "teaching.js", "analytics.js"):
+        source = open(os.path.join(HERE, "web", "src", name)).read()
+        literals |= set(re.findall(r'\bevent\("([^"]+)"\)', source))
+        literals |= set(re.findall(r'\bmilestone\("([^"]+)"\)', source))
+    # The two built from a fragment plus a variable are covered by the role test.
+    literals = {n for n in literals if not n.endswith("/")}
+    assert literals, "the scan found no event names at all -- has the call shape changed?"
+    assert literals <= allowed, sorted(literals - allowed)
+
+
+def test_the_allowlist_covers_every_role():
+    """Roles come from flash.ROLES, so adding one adds its events rather than
+    needing them written out again -- AGENTS.md section 9."""
+    allowed = set(analytics_events())
+    for role in ROLES:
+        for name in ("flash/%s/ok", "flash/%s/failed", "identify/%s", "download/%s"):
+            assert name % role in allowed
+
+
+def test_the_allowlist_holds_nothing_that_could_identify_a_board():
+    """Belt and braces on the closed set: no name may carry a serial number, a
+    group number or anything else free-form."""
+    for name in analytics_events():
+        assert re.fullmatch(r"[a-z0-9/+-]+", name), name
+        assert not re.search(r"\d{4,}", name), name
+
+
+def test_analytics_sends_nothing_when_it_is_not_configured(tmp_path):
+    off = dict(LIVE, endpoint="", hosts=[])
+    got = run_analytics("a.pageview(); a.event('monitor/start');"
+                        "console.log(JSON.stringify(sent));", tmp_path, off)
+    assert got == []
+
+
+def test_analytics_sends_nothing_from_another_host(tmp_path):
+    """The fork guard, and the reason a committed endpoint is safe: a copy of
+    this site is served from somewhere else, so it never reports as us."""
+    got = run_analytics("a.pageview(); console.log(JSON.stringify(sent));",
+                        tmp_path, LIVE, hostname="someone-else.github.io")
+    assert got == []
+
+
+@pytest.mark.parametrize("navigator", ['{"doNotTrack": "1"}',
+                                       '{"globalPrivacyControl": true}'])
+def test_analytics_honours_do_not_track(tmp_path, navigator):
+    """Honoured by sending nothing at all, rather than by sending a flag that
+    asks not to be counted."""
+    got = run_analytics("a.pageview(); a.event('monitor/start');"
+                        "console.log(JSON.stringify(sent));",
+                        tmp_path, LIVE, navigator=navigator)
+    assert got == []
+
+
+def test_analytics_drops_an_event_that_is_not_in_the_allowlist(tmp_path):
+    got = run_analytics("a.event('board/serial/9906360200052820726e40a4');"
+                        "console.log(JSON.stringify(sent));", tmp_path, LIVE)
+    assert got == []
+
+
+def test_a_pageview_carries_the_documented_parameters(tmp_path):
+    """GoatCounter's /count parameters: p path, t title, r referrer, s screen,
+    rnd cache buster. Nothing else, and no identifier."""
+    got = run_analytics("a.pageview(); console.log(JSON.stringify(sent));",
+                        tmp_path, LIVE)
+    assert len(got) == 1
+    url, query = got[0].split("?")
+    assert url == LIVE["endpoint"]
+    keys = {pair.split("=")[0] for pair in query.split("&")}
+    assert keys == {"p", "t", "r", "s", "rnd"}
+
+
+def test_the_group_number_is_never_sent(tmp_path):
+    """Minimisation: whether organisers move off the default is the open
+    question, and the value itself answers nothing further."""
+    got = run_analytics("a.group(31, 16); a.group(16, 16);"
+                        "console.log(JSON.stringify(sent));", tmp_path, LIVE)
+    assert len(got) == 2
+    assert "group%2Fother" in got[0] and "group%2Fdefault" in got[1]
+    assert "31" not in got[0].split("rnd=")[0]
+
+
+def test_session_milestones_fire_once_each(tmp_path):
+    """A sitting that sets up twelve boards counts once in each bucket up to
+    10+, so "sessions that reached ten boards" reads straight off the dashboard
+    as a count of class-scale set-ups -- and re-rendering the table, which
+    happens after every flash, must not inflate it."""
+    got = run_analytics("a.session(12, true); a.session(12, true); a.session(13, true);"
+                        "console.log(JSON.stringify(sent.map(u => u.split('?')[1].split('&')[0])));",
+                        tmp_path, LIVE)
+    assert got == ["p=session%2Fboards%2F10%2B", "p=session%2Fboards%2F5-9",
+                   "p=session%2Fboards%2F2-4", "p=session%2Fboards%2F1",
+                   "p=hunt%2Fready"]
+
+
+def test_a_session_with_no_treasure_is_not_a_playable_hunt(tmp_path):
+    """hunt/ready is the impact number, so it must mean what it says: a pile of
+    Hounds with nothing to find is not a prepared game."""
+    got = run_analytics("a.session(3, false);"
+                        "console.log(JSON.stringify(sent.map(u => u.split('?')[1])));",
+                        tmp_path, LIVE)
+    assert not any("hunt%2Fready" in u for u in got)
+
+
+def test_the_bundles_parse_on_browsers_that_cannot_flash(tmp_path):
+    """The .hex download is the only route on Firefox, Safari and iOS, so the
+    page has to run there. It did not: the bundle carried optional chaining
+    (ES2020), and a parse error is not a degraded page but no JavaScript at all
+    -- dead controls, an empty radio group box, no download and no analytics, on
+    precisely the browsers that depend on the download. Pinned by building for
+    real, because the failure is in esbuild's output rather than in our source.
+    """
+    if not os.path.isdir(os.path.join(HERE, "node_modules")):
+        pytest.skip("node_modules is missing; run 'npm ci' to check the bundles")
+    if shutil.which("npx") is None:
+        pytest.skip("npx is not installed; the bundles cannot be built")
+    for entry, prefix in (("main.js", "app"), ("teaching.js", "teaching")):
+        name = build_site.bundle(str(tmp_path), "test", entry=entry, prefix=prefix)
+        built = (tmp_path / name).read_text()
+        # ?. and ?? are the ES2020 operators esbuild would otherwise pass
+        # through. In a string they are harmless, so this looks for the operator
+        # shape: something that could be an expression on the left.
+        for operator in (r"[\w\)\]]\?\.", r"[\w\)\]]\s*\?\?[^?]"):
+            assert not re.search(operator, built), (entry, operator)
+
+
+def test_the_hex_download_is_counted_and_works_without_webusb():
+    """On Firefox, Safari, iOS and iPadOS the .hex download is the *only* route
+    to a board, so two things have to hold or that whole audience is both
+    unserved and invisible: the buttons must stay live when WebUSB is missing,
+    and the download must be counted. What cannot be known is whether the file
+    was ever dragged onto a board -- nothing of ours runs after it, which is the
+    asymmetry to remember when comparing the two routes."""
+    source = open(os.path.join(HERE, "web", "src", "main.js")).read()
+    download = source[source.index("async function download("):]
+    download = download[:download.index("// --- session")]
+    assert "count.downloaded(role)" in download
+
+    # The WebUSB check disables the routes that need a board on the wire. The
+    # download buttons must not be among them.
+    disabled = re.search(r"if \(!webUsbAvailable\(\)\) \{(.+?)\n  \}", source, re.S)
+    assert disabled, "the WebUSB guard has moved; check what it disables"
+    for button in ("dl-fox", "dl-hound"):
+        assert button not in disabled.group(1), button
+
+
+def test_the_page_says_what_it_counts():
+    """A teacher may have to answer for this page to a data protection officer,
+    and the note is the answer. It must name every category the code can send,
+    so the page cannot promise less than the allowlist permits."""
+    page = render("index.html")
+    note = " ".join(page.split('<details id="counting"')[1]
+                    .split("</details>")[0].split())
+    for phrase in ("No cookies", "Do Not Track", "Global Privacy Control",
+                   "serial numbers", "printed", "connected", "set up",
+                   "radio monitor", "radio group", "playable hunt",
+                   "can only download a file"):
+        assert phrase in note, phrase
+    # And the teaching pages, which count a view and a print, point at it.
+    for name in TEACHING:
+        assert 'href="index.html#counting"' in render(name), name
+
+
+def test_the_teaching_pages_share_one_copy_of_the_beacon():
+    """They used to load a hand-copied script. Bundling them means analytics.js
+    exists once in the repo rather than once per entry point."""
+    assert not os.path.exists(os.path.join(HERE, "web", "teaching.js"))
+    assert 'from "./analytics.js"' in open(os.path.join(HERE, "web", "src", "teaching.js")).read()
+    for name in TEACHING:
+        assert "__TEACHING_SCRIPT__" in open(os.path.join(HERE, "web", name)).read(), name

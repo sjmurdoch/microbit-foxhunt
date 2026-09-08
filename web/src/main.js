@@ -7,6 +7,9 @@
 import { Flasher, BoardRefused, webUsbAvailable } from "./flasher.js";
 import { Monitor } from "./monitor.js";
 import { renderRadioConfig, tallyBoards } from "./device.js";
+// Namespaced rather than named: several of these would shadow a local
+// `group` or `event`. See analytics.js for what is and is not sent.
+import * as count from "./analytics.js";
 
 const $ = (id) => document.getElementById(id);
 const GROUP_KEY = "foxhunt.group";
@@ -202,10 +205,15 @@ async function connect() {
       board.surveyState = "failed";
       renderBoard();
     }
+    count.event("connect/ok");
+    count.identified(board.survey && board.survey.role);
     busy(null);
   } catch (e) {
     busy(null);
     if (e instanceof BoardRefused) {
+      // The only refusal is a v1 board, and it is worth knowing how often
+      // someone is stopped by it -- AGENTS.md section 8 has the v1 path open.
+      count.event("connect/refused-v1");
       banner($("board"), "bad", `<strong>This board will not be flashed.</strong><br>${e.message}`);
       show($("board"), true);
       show($("act"), false);
@@ -220,11 +228,13 @@ async function connect() {
           "you need to go back to one of them.");
       }
     } else if (e && e.code === "device-in-use") {
+      count.event("connect/failed");
       banner($("board"), "bad",
         "<strong>Another program has this board.</strong> Close any other tab, " +
         "editor or serial monitor using it, then try again.");
       show($("board"), true);
     } else {
+      count.event("connect/failed");
       banner($("board"), "bad", `<strong>Could not connect.</strong> ${escapeHtml(String(e.message || e))}`);
       show($("board"), true);
     }
@@ -337,6 +347,10 @@ async function doFlash(role) {
     $("progress"),
     `Getting ready to set up the ${manifest.roles[role].label.toLowerCase()}\u2026`);
   busy("Preparing\u2026");
+  // Whether anyone flashes with no network is the unverified half of the
+  // offline claim in AGENTS.md section 8; this is the only way to find out.
+  if (navigator.onLine === false) count.event("flash/offline");
+  count.group(group, manifest.group.default);
 
   try {
     await loadMicroPython(progress.note);
@@ -350,6 +364,8 @@ async function doFlash(role) {
     await flasher.reset();
 
     const label = manifest.roles[role].label;
+    count.flashed(role, boot.ok && verified.ok);
+    if (!boot.ok) count.event("boot-check/failed");
     if (boot.ok && verified.ok) {
       // The next thing to do goes in the success message. It used to live only
       // as "Done with this board" further up the page, which is nowhere near
@@ -382,6 +398,7 @@ async function doFlash(role) {
       if (board.survey) renderBoard();
     }
   } catch (e) {
+    count.flashed(role, false);
     banner($("result"), "bad",
       `<strong>Setting up this board failed.</strong> ${escapeHtml(String(e.message || e))}<br>` +
       `<span class="note">It may need setting up again before it will run.</span>`);
@@ -435,6 +452,7 @@ const stageLabel = (stage) =>
 
 async function startMonitor() {
   const group = currentGroup();
+  count.event("monitor/start");
   show($("monitor-panel"), true);
   // This writes a board, exactly as the two "Set it up" buttons do, so it gets
   // the same bar -- here, because the scroll below puts this panel on screen
@@ -531,6 +549,7 @@ async function download(role) {
     a.download = `radio-treasure-hunt-${named}-group${group}-microbitV2.hex`;
     a.click();
     URL.revokeObjectURL(url);
+    count.downloaded(role);
   } finally {
     busy(null);
     text(button, label);
@@ -562,7 +581,11 @@ function renderTally() {
 }
 
 function renderSession() {
-  const { latest, boards } = boardTally();
+  const { latest, boards, counts } = boardTally();
+  // Reach and impact, counted where the session's real state already is: how
+  // many boards this organiser has set up, and whether they now hold a
+  // playable game rather than a pile of Hounds with nothing to find.
+  count.session(boards, (counts.fox || 0) > 0 && (counts.hound || 0) > 0);
   const body = $("session-table").querySelector("tbody");
   body.innerHTML = latest
     .map((f, i) => `<tr><td>${i + 1}<span class="note mono"> · ${(f.serialNumber || "?").slice(0, 8)}</span></td>` +
@@ -582,6 +605,7 @@ function escapeHtml(s) {
 // --- start -----------------------------------------------------------------
 
 async function init() {
+  count.pageview();
   busy("Loading\u2026");
   await loadManifest();
 
@@ -593,6 +617,7 @@ async function init() {
   input.value = saved || manifest.group.default;
   input.addEventListener("input", refreshGroup);
 
+  count.event(webUsbAvailable() ? "webusb/available" : "webusb/unsupported");
   if (!webUsbAvailable()) {
     show($("unsupported"), true);
     $("connect").disabled = true;
