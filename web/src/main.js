@@ -239,30 +239,61 @@ function describeCurrent(s) {
 
 // --- flashing --------------------------------------------------------------
 
+/**
+ * The progress bar, rendered wherever the eye already is.
+ *
+ * Two routes write a board and both are the same twenty-three second wait:
+ * setting one up as a role, and turning one into the radio monitor. The monitor
+ * arm shipped without a bar, so the longest silence on the page was the one
+ * with the least feedback. It cannot borrow the card in "Set it up" either --
+ * starting the monitor scrolls its own panel to the top of the screen, which
+ * leaves that card just above the viewport. So the markup is rendered into
+ * whichever container is being watched rather than written out twice.
+ */
+function progressCard(card, opening) {
+  card.className = "card";
+  card.innerHTML = '<div class="bar"><div></div></div><p></p>';
+  const fill = card.querySelector(".bar > div");
+  const note = (s) => text(card.querySelector("p"), s);
+  note(opening);
+  show(card, true);
+  return {
+    note,
+    /** What flashRole reports its stages to. */
+    onProgress: (stage, fraction) => {
+      if (fraction === undefined) {
+        note(stageLabel(stage) + "…");
+        return;
+      }
+      const percent = Math.round(fraction * 100);
+      fill.style.width = percent + "%";
+      note(`${stageLabel(stage)} ${percent}%`);
+    },
+    /** Writing has finished; say what is being waited for now. */
+    complete: (s) => {
+      fill.style.width = "100%";
+      note(s);
+    },
+  };
+}
+
 async function doFlash(role) {
   const group = currentGroup();
   const buttons = ["flash-fox", "flash-hound", "monitor-start", "connect"].map($);
   buttons.forEach((b) => { b.disabled = true; });
   show($("result"), false);
-  show($("progress"), true);
-  const setNote = (s) => text($("progress-text"), s);
-  setNote(`Getting ready to set up the ${manifest.roles[role].label.toLowerCase()}\u2026`);
+  const progress = progressCard(
+    $("progress"),
+    `Getting ready to set up the ${manifest.roles[role].label.toLowerCase()}\u2026`);
   busy("Preparing\u2026");
 
   try {
-    await loadMicroPython(setNote);
-    setNote("Writing to the board\u2026 do not unplug it.");
-    const { stage, seconds, image } = await flasher.flashRole(role, group, (s, fraction) => {
-      if (fraction !== undefined) {
-        $("bar-fill").style.width = Math.round(fraction * 100) + "%";
-        setNote(`${stageLabel(s)} ${Math.round(fraction * 100)}%`);
-      } else {
-        setNote(stageLabel(s) + "…");
-      }
-    });
-    $("bar-fill").style.width = "100%";
+    await loadMicroPython(progress.note);
+    progress.note("Writing to the board\u2026 do not unplug it.");
+    const { stage, seconds, image } =
+      await flasher.flashRole(role, group, progress.onProgress);
 
-    setNote("Checking it started…");
+    progress.complete("Checking it started…");
     const boot = await flasher.bootCheck(3);
     const verified = await flasher.verify(image.want);
     await flasher.reset();
@@ -306,7 +337,6 @@ async function doFlash(role) {
   } finally {
     busy(null);
     show($("progress"), false);
-    $("bar-fill").style.width = "0";
     buttons.forEach((b) => { b.disabled = false; });
     refreshGroup();
   }
@@ -350,16 +380,28 @@ const stageLabel = (stage) =>
 async function startMonitor() {
   const group = currentGroup();
   show($("monitor-panel"), true);
-  $("monitor-out").innerHTML = "<p class='note'>Setting this board up to listen…</p>";
+  // This writes a board, exactly as the two "Set it up" buttons do, so it gets
+  // the same bar -- here, because the scroll below puts this panel on screen
+  // and the card in "Set it up" off it.
+  const progress = progressCard($("monitor-out"), "Setting this board up to listen…");
   $("monitor-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  let listening = false;
   try {
-    await loadMicroPython();
+    await loadMicroPython(progress.note);
     busy("Setting this board up to listen\u2026");
     monitor = new Monitor(flasher, {
-      onStart: () => { $("monitor-out").innerHTML = "<p>Listening\u2026</p>"; },
+      onStart: () => {
+        listening = true;
+        $("monitor-out").innerHTML = "<p>Listening\u2026</p>";
+      },
       onUpdate: (state) => renderMonitor(state),
     });
-    await monitor.start(group);
+    progress.note("Writing to the board\u2026 do not unplug it.");
+    await monitor.start(group, progress.onProgress);
+    // The board announces itself when it boots, and renderMonitor takes the
+    // card over from there. Until then the bar stays up saying what is awaited,
+    // rather than sitting at 100% as though something had finished.
+    if (!listening) progress.complete("Waiting for the board to start listening…");
     renderSession();
     busy(null);
   } catch (e) {

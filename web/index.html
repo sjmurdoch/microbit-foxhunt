@@ -187,10 +187,9 @@
     <button id="monitor-start">Check the Treasure is working&hellip;</button>
   </p>
   <p id="tally" class="note" hidden></p>
-  <div id="progress" class="card" hidden>
-    <div class="bar"><div id="bar-fill"></div></div>
-    <p id="progress-text" aria-live="polite"></p>
-  </div>
+  <!-- Filled in by progressCard(); the bar is rendered rather than written out
+       here, because the radio monitor needs the same one inside its own panel. -->
+  <div id="progress" class="card" hidden aria-live="polite"></div>
   <div id="result" class="card" hidden aria-live="polite"></div>
 </section>
 

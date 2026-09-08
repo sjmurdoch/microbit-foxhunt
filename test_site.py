@@ -1145,6 +1145,30 @@ def test_the_monitor_is_labelled_by_what_it_is_for():
     assert "Check the Treasure is working" in page
 
 
+def test_every_route_that_writes_a_board_shows_a_progress_bar():
+    """Reported from the page: "Check the Treasure is working" writes a board
+    exactly as the two "Set it up" buttons do -- the same twenty-three seconds --
+    but was the only one of the three to do it behind a bare line of text.
+
+    The bar is rendered by progressCard() rather than written into the page a
+    second time, because the monitor needs it inside its own panel: starting the
+    monitor scrolls that panel to the top of the screen, which puts the card in
+    "Set it up" out of view."""
+    page = open(os.path.join("web", "index.html")).read()
+    assert 'class="bar"' not in page, "the bar belongs to progressCard(), not the page"
+
+    source = open(os.path.join("web", "src", "main.js")).read()
+    assert source.count("function progressCard(") == 1
+    where = re.findall(r'progressCard\(\s*\$\("([a-z-]+)"\)', source)
+    assert sorted(where) == ["monitor-out", "progress"], where
+    assert "flasher.flashRole(role, group, progress.onProgress)" in source
+    assert "monitor.start(group, progress.onProgress)" in source
+
+    # ...and the monitor has to hand it on to the flash it performs.
+    monitor = open(os.path.join("web", "src", "monitor.js")).read()
+    assert 'flashRole("integration", group, onProgress)' in monitor
+
+
 def test_messages_after_teardown_go_somewhere_visible():
     """Found during the teacher walkthrough: clearBoardUi hides the "Flash it"
     section, and the "N boards done, plug in the next" message was being written
