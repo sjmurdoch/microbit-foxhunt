@@ -105,6 +105,16 @@ ROLE_LABELS = {
 ANALYTICS_SECTION = ("tool", "foxhunt", "analytics")
 ANALYTICS_ENV_ENDPOINT = "FOXHUNT_ANALYTICS_ENDPOINT"
 ANALYTICS_ENV_HOSTS = "FOXHUNT_ANALYTICS_HOSTS"
+ANALYTICS_ENV_PREFIX = "FOXHUNT_ANALYTICS_PREFIX"
+
+# Every path this site reports -- page views and events alike -- goes under this
+# one namespace. The counting lands in the personal site's own GoatCounter site
+# rather than a separate one, because the hunt is part of that site rather than
+# a thing of its own; so the namespace is what keeps it identifiable, and lets
+# one filter on the dashboard show the hunt and nothing else. Checked
+# 2026-09-08 that https://murdoch.is/radio-treasure-hunt is a 404, so it
+# collides with nothing the site already serves.
+ANALYTICS_PREFIX = "radio-treasure-hunt"
 
 # Event names that do not depend on a role. The role-shaped ones are generated
 # from flash.ROLES below, so adding a role adds its events rather than needing
@@ -176,7 +186,7 @@ def _pyproject_analytics():
     return data
 
 
-def analytics_config(endpoint=None, hosts=None, disabled=False, env=None):
+def analytics_config(endpoint=None, hosts=None, prefix=None, disabled=False, env=None):
     """Resolve the analytics settings.
 
     Precedence is the project rule for every setting here: command line, then
@@ -184,7 +194,8 @@ def analytics_config(endpoint=None, hosts=None, disabled=False, env=None):
     """
     env = os.environ if env is None else env
     if disabled:
-        return {"endpoint": "", "hosts": [], "events": analytics_events()}
+        return {"endpoint": "", "hosts": [], "prefix": ANALYTICS_PREFIX,
+                "events": analytics_events()}
 
     from_file = _pyproject_analytics()
     if endpoint is None:
@@ -195,6 +206,12 @@ def analytics_config(endpoint=None, hosts=None, disabled=False, env=None):
     if isinstance(hosts, str):
         hosts = hosts.split(",")
     hosts = [h.strip() for h in hosts if h.strip()]
+    if prefix is None:
+        prefix = env.get(ANALYTICS_ENV_PREFIX, from_file.get("prefix", ANALYTICS_PREFIX))
+    prefix = prefix.strip().strip("/")
+    if not prefix:
+        sys.exit("analytics prefix must not be empty: it is what identifies this "
+                 "site's paths inside a shared GoatCounter site.")
 
     endpoint = (endpoint or "").strip()
     if endpoint and not endpoint.startswith("https://"):
@@ -205,7 +222,8 @@ def analytics_config(endpoint=None, hosts=None, disabled=False, env=None):
     if endpoint and not hosts:
         sys.exit("analytics endpoint is set but no hosts are, so nothing would "
                  "ever be sent. Set hosts, or --no-analytics.")
-    return {"endpoint": endpoint, "hosts": hosts, "events": analytics_events()}
+    return {"endpoint": endpoint, "hosts": hosts, "prefix": prefix,
+            "events": analytics_events()}
 
 
 def device_digest(data):
@@ -593,12 +611,15 @@ def main():
     ap.add_argument("--analytics-hosts", metavar="HOST,HOST",
                     help="only beacon when served from these hostnames (overrides $%s)"
                          % ANALYTICS_ENV_HOSTS)
+    ap.add_argument("--analytics-prefix", metavar="NAME",
+                    help="namespace every reported path (overrides $%s)" % ANALYTICS_ENV_PREFIX)
     ap.add_argument("--no-analytics", action="store_true",
                     help="build with no beacon at all, whatever is configured")
     args = ap.parse_args()
 
     analytics = analytics_config(endpoint=args.analytics_endpoint,
                                  hosts=args.analytics_hosts,
+                                 prefix=args.analytics_prefix,
                                  disabled=args.no_analytics)
     manifest, out = build(args.out, run_bundle=not args.no_bundle, analytics=analytics)
     print("site      %s" % out)
@@ -609,7 +630,9 @@ def main():
     print("roles     %s" % ", ".join(sorted(manifest["roles"])))
     # Printed so a build that quietly lost its analytics shows up in the CI log
     # rather than only on a dashboard that stops moving.
-    print("analytics %s" % (("%s (%s)" % (analytics["endpoint"], ", ".join(analytics["hosts"])))
+    print("analytics %s" % (("%s (%s) under %s/" % (analytics["endpoint"],
+                                                    ", ".join(analytics["hosts"]),
+                                                    analytics["prefix"]))
                             if analytics["endpoint"] else "off"))
     return 0
 

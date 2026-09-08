@@ -32,6 +32,10 @@ That is a solved problem, but only once the source is read rather than the blog 
 * **`-tls none` is not a thing.** The flag's values are `http`, a `.pem` path, `acme[:cache]` and `rdr`, and **`http` — "don't serve any TLS" — is the default**, which is exactly what is wanted behind Apache.
 * **Subdirectories are supported.** `-base-path` exists and its help names this case: *"in some cases it's useful to run GoatCounter under a path ('example.com/stats'), in which case you'll need to set this to '/stats'"*.
 
+**The hunt is counted as part of murdoch.is, not as a site of its own.** GoatCounter is multi-site and selects a site by the `Host` header, so a separate site was possible -- but the hunt is part of the owner's personal site rather than a thing standing on its own, and it is counted that way. What that costs is separability, and a namespace buys it back: **every path this site reports, page views and events alike, goes under `radio-treasure-hunt/`**, so one filter on the dashboard shows the hunt and only the hunt, and the personal site's own paths stay clean of it. `https://murdoch.is/radio-treasure-hunt` was checked and is a 404, so the namespace collides with nothing already served.
+
+Page identity is derived from the last path segment rather than reported as the raw pathname, so it survives the site moving -- from `/radio-treasure-hunt/` on Pages to a custom domain or a domain root -- without silently splitting one page's history in two.
+
 So GoatCounter runs on the loopback under `-base-path /stats`, and Apache reverse-proxies `/stats` on the existing `murdoch.is` vhost. Everything moves under that prefix, which means the beacon endpoint is `https://murdoch.is/stats/count` and the dashboard is a normal browser page at `https://murdoch.is/stats/` behind GoatCounter's own login — no new name, no certificate change, and no SSH tunnel to read the numbers. Sites are matched by `Host`, so Apache passes it through (`ProxyPreserveHost On`) and the site is created with `-vhost=murdoch.is`.
 
 ## 3. Privacy posture
@@ -83,6 +87,7 @@ Page views are not impact. What the project owner has to be able to say is how m
 * **A prepared hunt is not a played hunt.** `hunt/ready` says boards were set up, and nothing at all about whether a game happened, whether children enjoyed it, or whether anyone learned anything. The acceptance test for that is still watching a class use it -- AGENTS.md section 8 says so and analytics does not change it.
 * **Everything here undercounts, by an unknown amount.** Blockers, Do Not Track, and a school network that blocks the stats host all remove real use from the figures, and the last of those is likeliest in exactly the population being measured. Treat every number as a floor.
 * **Offline use is invisible.** The page is built to work in a field with no network, and a beacon sent there never arrives. A hunt run entirely from a cached page counts as nothing.
+* **Site-level totals are not the hunt's.** Because this is counted inside the personal site, the dashboard's unfiltered totals, and its browser and country breakdowns, mix the hunt with everything else on `murdoch.is`. Filter by the namespace before quoting any number as the hunt's.
 * **A session is one page load, not a person.** Someone who sets up boards over two visits is two sessions; nothing joins them, deliberately.
 * **A board set up twice counts once.** The tally is by serial number, so reflashing is not inflation -- but a board set up in two separate sittings is two counts.
 

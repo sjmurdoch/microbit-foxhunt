@@ -42,6 +42,17 @@ export const HOSTS = CONFIG.hosts;
 export const EVENTS = CONFIG.events;
 
 /**
+ * The namespace every reported path goes under.
+ *
+ * The counting lands in the personal site's own GoatCounter site, because the
+ * hunt is part of that site rather than a thing of its own -- so without a
+ * shared prefix its events would scatter through that site's own paths with no
+ * way to tell them apart. With one, a single filter on the dashboard shows the
+ * hunt and nothing else, and the site's own traffic stays clean of it.
+ */
+export const PREFIX = CONFIG.prefix;
+
+/**
  * Whether anything may be sent at all.
  *
  * The host check is a second, independent guard on top of the endpoint: a fork
@@ -95,11 +106,36 @@ function send(params) {
   }
 }
 
+/**
+ * Which page this is, under the namespace.
+ *
+ * Derived from the last path segment rather than reported as the raw pathname,
+ * so the identity survives the site moving: it reads the same whether it is
+ * served from /radio-treasure-hunt/ on Pages, from a domain root, or from
+ * anywhere else. index and the bare directory both report the prefix itself.
+ */
+export function pagePath() {
+  let page = "";
+  try {
+    const path = location.pathname || "/";
+    // A trailing slash is a directory index, where the last segment names the
+    // directory rather than a page -- so /radio-treasure-hunt/ is the front
+    // page, not a page called radio-treasure-hunt.
+    if (!path.endsWith("/")) {
+      page = (path.split("/").filter(Boolean).pop() || "").replace(/\.html$/, "");
+      if (page === "index") page = "";
+    }
+  } catch (e) {
+    page = "";
+  }
+  return "/" + PREFIX + (page ? "/" + page : "/");
+}
+
 /** The page itself. Called once per page, from each entry point. */
 export function pageview() {
   try {
     return send({
-      p: location.pathname,
+      p: pagePath(),
       t: document.title,
       r: document.referrer,
       s: [screen.width, screen.height, devicePixelRatio || 1].join(","),
@@ -114,8 +150,12 @@ export function pageview() {
  * sent, so a typo loses a count instead of inventing a path on the dashboard.
  */
 export function event(name) {
+  // The allowlist holds the bare vocabulary; the namespace is added here, in
+  // one place, so call sites stay readable and the test that scans them still
+  // sees the names it is checking.
   if (EVENTS.indexOf(name) === -1) return false;
-  return send({ p: name, e: "1", t: name });
+  const path = PREFIX + "/" + name;
+  return send({ p: path, e: "1", t: path });
 }
 
 // Role-shaped events. The role keys come from flash.ROLES via the generated

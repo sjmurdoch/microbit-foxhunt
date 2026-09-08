@@ -1635,6 +1635,7 @@ def run_analytics(body, tmp_path, config, hostname="sjmurdoch.github.io", naviga
 
 LIVE = {"endpoint": "https://stats.example.org/count",
         "hosts": ["sjmurdoch.github.io"],
+        "prefix": "radio-treasure-hunt",
         "events": analytics_events()}
 
 
@@ -1776,9 +1777,11 @@ def test_session_milestones_fire_once_each(tmp_path):
     got = run_analytics("a.session(12, true); a.session(12, true); a.session(13, true);"
                         "console.log(JSON.stringify(sent.map(u => u.split('?')[1].split('&')[0])));",
                         tmp_path, LIVE)
-    assert got == ["p=session%2Fboards%2F10%2B", "p=session%2Fboards%2F5-9",
-                   "p=session%2Fboards%2F2-4", "p=session%2Fboards%2F1",
-                   "p=hunt%2Fready"]
+    assert got == ["p=radio-treasure-hunt%2Fsession%2Fboards%2F10%2B",
+                   "p=radio-treasure-hunt%2Fsession%2Fboards%2F5-9",
+                   "p=radio-treasure-hunt%2Fsession%2Fboards%2F2-4",
+                   "p=radio-treasure-hunt%2Fsession%2Fboards%2F1",
+                   "p=radio-treasure-hunt%2Fhunt%2Fready"]
 
 
 def test_a_session_with_no_treasure_is_not_a_playable_hunt(tmp_path):
@@ -1788,6 +1791,59 @@ def test_a_session_with_no_treasure_is_not_a_playable_hunt(tmp_path):
                         "console.log(JSON.stringify(sent.map(u => u.split('?')[1])));",
                         tmp_path, LIVE)
     assert not any("hunt%2Fready" in u for u in got)
+
+
+def test_every_reported_path_is_under_one_namespace(tmp_path):
+    """The hunt is counted inside murdoch.is's own GoatCounter site, because it
+    is part of that personal site rather than a thing of its own. So everything
+    it sends -- page views and events alike -- must sit under one prefix, or its
+    paths scatter through the site's own traffic with no way to tell them apart.
+    One filter has to be able to show the hunt, and only the hunt."""
+    got = run_analytics(
+        "a.pageview(); a.event('hunt/ready'); a.flashed('fox', true);"
+        "console.log(JSON.stringify(sent.map(u => decodeURIComponent("
+        "  u.split('?')[1].split('&').find(kv => kv.startsWith('p=')).slice(2)))));",
+        tmp_path, LIVE)
+    assert got == ["/radio-treasure-hunt/",
+                   "radio-treasure-hunt/hunt/ready",
+                   "radio-treasure-hunt/flash/fox/ok"]
+
+
+@pytest.mark.parametrize("pathname,expected", [
+    ("/radio-treasure-hunt/", "/radio-treasure-hunt/"),
+    ("/radio-treasure-hunt/index.html", "/radio-treasure-hunt/"),
+    ("/radio-treasure-hunt/worksheet.html", "/radio-treasure-hunt/worksheet"),
+    ("/", "/radio-treasure-hunt/"),
+    ("/somewhere/else/hunt-card.html", "/radio-treasure-hunt/hunt-card"),
+])
+def test_the_page_identity_survives_the_site_moving(tmp_path, pathname, expected):
+    """Reported from the last path segment rather than the raw pathname, so a
+    move -- to a custom domain, or to a domain root -- does not silently split
+    one page's history into two."""
+    stub = ANALYTICS_STUB.replace('pathname: "/"', "pathname: %s" % json.dumps(pathname))
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    source = open(ANALYTICS_JS).read().replace("__ANALYTICS__", json.dumps(LIVE))
+    (tmp_path / "analytics.mjs").write_text(source)
+    (tmp_path / "check.mjs").write_text(
+        (stub % (json.dumps("sjmurdoch.github.io"), "{}")) +
+        "const a = await import(%s);\nconsole.log(JSON.stringify(a.pagePath()));"
+        % json.dumps("file://" + str(tmp_path / "analytics.mjs")))
+    done = subprocess.run([node, str(tmp_path / "check.mjs")], capture_output=True, cwd=HERE)
+    if done.returncode != 0:
+        pytest.fail(done.stderr.decode("utf-8", "replace"))
+    assert json.loads(done.stdout.decode("utf-8")) == expected
+
+
+def test_the_namespace_cannot_be_configured_away():
+    """It is the only thing separating the hunt from the rest of the site it is
+    counted in, so an empty one is a build failure rather than a default."""
+    with pytest.raises(SystemExit):
+        analytics_config(endpoint="https://stats.example.org/count",
+                         hosts="example.org", prefix="  ", env={})
+    assert analytics_config(endpoint="https://stats.example.org/count",
+                            hosts="example.org", prefix="/rth/", env={})["prefix"] == "rth"
 
 
 def test_the_bundles_parse_on_browsers_that_cannot_flash(tmp_path):
