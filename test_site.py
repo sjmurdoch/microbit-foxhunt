@@ -1302,13 +1302,19 @@ def test_running_two_hunts_at_once_is_explained():
 
 
 def test_indoor_expectations_are_honest():
-    """Indoors there is about 1 dB between two metres and five, so the hunt
-    degenerates. Someone whose first attempt is in a hall should know that before
-    they conclude the equipment is broken."""
+    """Someone whose first attempt is in a hall should know indoors is the harder
+    game before they conclude the equipment is broken.
+
+    What that means in prose is the author's call, and 9a69fff made it: the
+    measured "barely any difference between two metres and five" came out, so
+    this no longer pins the figure. What it still pins is that the page says
+    indoors is worse and why, rather than leaving a hall to be discovered as a
+    fault. The measurement itself lives in AGENTS.md section 4."""
     page = open(os.path.join("web", "index.html")).read()
     intro = page[page.index('id="intro"'):page.index('id="setup"')]
-    assert "two metres and five" in intro
-    assert "Outdoors is where the hunt really works" in intro
+    assert "indoors the readings jump about" in intro
+    assert "bounces off the walls" in intro
+    assert "Outdoors is where the hunt works best" in intro
 
 
 def test_it_says_to_set_boards_up_before_leaving():
