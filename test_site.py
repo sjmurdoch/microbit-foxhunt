@@ -1145,6 +1145,59 @@ def test_the_monitor_is_labelled_by_what_it_is_for():
     assert "Check the Treasure is working" in page
 
 
+def test_only_one_board_operation_runs_at_a_time():
+    """The page drives a single USB connection, so overlapping two operations is
+    not a slow page but a corrupted board -- a flash interleaved with another
+    flash, or with the disconnect behind "Done with this board".
+
+    It also has to stop the radio monitor, which is the one thing that keeps
+    reading after its own operation has returned: it drains the serial buffer
+    every 150 ms, and that is where bootCheck and verify read their answers
+    from, so a flash started underneath it would call a healthy board broken.
+
+    The guard used to be a button list copied into each operation, and it had
+    already drifted -- doFlash disabled four controls, startMonitor none at
+    all, which is how the monitor came to be startable mid-flash."""
+    source = open(os.path.join("web", "src", "main.js")).read()
+
+    # Every route to the board goes through the lock, including the button that
+    # only exists once a flash has succeeded.
+    for handler in ("withBoard(connect)", "withBoard(forgetBoard)",
+                    'withBoard(() => doFlash("fox"))',
+                    'withBoard(() => doFlash("hound"))',
+                    "withBoard(startMonitor)", "withBoard(restoreGame)",
+                    "withBoard(nextBoard)"):
+        assert handler in source, handler
+    wired = set(re.findall(
+        r'\$\("([a-z-]+)"\)\.addEventListener\("click", \(\) => withBoard', source))
+
+    # There is one lock, and it holds the only copy of the button list.
+    assert source.count("let boardBusy") == 1
+    assert source.count("if (boardBusy)") == 1
+    controls = set(re.findall(
+        r'"([a-z-]+)"',
+        re.search(r"const BOARD_CONTROLS = \[(.*?)\];", source, re.S).group(1)))
+    assert controls == {"connect", "forget", "flash-fox", "flash-hound",
+                        "monitor-start", "monitor-restore", "next-board"}
+    assert wired <= controls, wired - controls
+    page = open(os.path.join("web", "index.html")).read()
+    for control in controls - {"next-board"}:
+        assert 'id="%s"' % control in page, control
+    assert 'id="next-board"' in source
+
+    lock = source[source.index("async function withBoard("):
+                  source.index("// --- connecting")]
+    assert "if (monitor) monitor.stop();" in lock
+
+    # ...so nothing guards itself any more, which is what drifted before.
+    assert "buttons.forEach" not in source
+    for name in ("forgetBoard", "nextBoard", "restoreGame"):
+        body = source[source.index("async function %s(" % name):]
+        body = body[:body.index("\n}\n")]
+        assert "monitor.stop" not in body, name
+        assert "disabled" not in body, name
+
+
 def test_every_route_that_writes_a_board_shows_a_progress_bar():
     """Reported from the page: "Check the Treasure is working" writes a board
     exactly as the two "Set it up" buttons do -- the same twenty-three seconds --

@@ -100,6 +100,62 @@ function refreshGroup() {
   else show($("group-warning"), false);
 }
 
+// --- one board operation at a time ------------------------------------------
+
+/**
+ * Controls that reach the board over USB. Everything here shares one
+ * connection, so they must not overlap.
+ */
+const BOARD_CONTROLS = [
+  "connect", "forget", "flash-fox", "flash-hound",
+  "monitor-start", "monitor-restore", "next-board",
+];
+
+let boardBusy = false;
+
+/**
+ * Take the board for the duration of one operation.
+ *
+ * Two of these at once is not a slow page, it is a corrupted board: a flash
+ * interleaved with another flash, or with the disconnect behind "Done with this
+ * board". The guard used to be a button list written out inside each operation
+ * -- doFlash disabled four of them, startMonitor disabled none at all -- which
+ * is the same fact in two places, and it had already drifted.
+ *
+ * Two jobs, because there are two ways to reach the board at once:
+ *
+ * - Disable the controls, and refuse re-entry anyway. A disabled button is not
+ *   proof: the second click of a double-click can land before the first has
+ *   disabled anything, and #next-board is rendered into a result banner rather
+ *   than existing up front.
+ * - Stop the monitor. It is the one thing that keeps reading after its own
+ *   operation has finished, and it drains the serial buffer every 150 ms --
+ *   which is where bootCheck and verify read their answers from, so a flash
+ *   started underneath it would report a healthy board as broken. This is why
+ *   nothing below stops the monitor for itself any more.
+ *
+ * Buttons are restored to what they were rather than simply enabled, so a state
+ * set for another reason (no WebUSB, an unusable group) survives; refreshGroup
+ * then has the last word, in case the group was edited while this ran.
+ */
+async function withBoard(fn) {
+  if (boardBusy) {
+    console.warn("[foxhunt] ignored: the board is already busy");
+    return;
+  }
+  boardBusy = true;
+  if (monitor) monitor.stop();
+  const was = BOARD_CONTROLS.map($).filter(Boolean).map((b) => [b, b.disabled]);
+  was.forEach(([b]) => { b.disabled = true; });
+  try {
+    return await fn();
+  } finally {
+    boardBusy = false;
+    was.forEach(([b, disabled]) => { b.disabled = disabled; });
+    refreshGroup();
+  }
+}
+
 // --- connecting ------------------------------------------------------------
 
 function clearBoardUi(warning, kind) {
@@ -118,7 +174,6 @@ function clearBoardUi(warning, kind) {
 
 async function connect() {
   const button = $("connect");
-  button.disabled = true;
   busy("Opening the device chooser\u2026");
   show($("result"), false);
   try {
@@ -173,8 +228,6 @@ async function connect() {
       banner($("board"), "bad", `<strong>Could not connect.</strong> ${escapeHtml(String(e.message || e))}`);
       show($("board"), true);
     }
-  } finally {
-    button.disabled = false;
   }
 }
 
@@ -279,8 +332,6 @@ function progressCard(card, opening) {
 
 async function doFlash(role) {
   const group = currentGroup();
-  const buttons = ["flash-fox", "flash-hound", "monitor-start", "connect"].map($);
-  buttons.forEach((b) => { b.disabled = true; });
   show($("result"), false);
   const progress = progressCard(
     $("progress"),
@@ -312,7 +363,7 @@ async function doFlash(role) {
         `contents checked against the board.</span>` +
         `<p class="row"><button id="next-board" class="primary">Done &mdash; set up another board</button></p>`);
       const next = $("next-board");
-      if (next) next.addEventListener("click", nextBoard);
+      if (next) next.addEventListener("click", () => withBoard(nextBoard));
     } else if (!boot.ok) {
       banner($("result"), "bad",
         `<strong>${label} was written, but it is not running.</strong><br>${escapeHtml(boot.reason)}` +
@@ -337,15 +388,20 @@ async function doFlash(role) {
   } finally {
     busy(null);
     show($("progress"), false);
-    buttons.forEach((b) => { b.disabled = false; });
-    refreshGroup();
   }
+}
+
+/** Put this board down without comment. */
+async function forgetBoard() {
+  busy("Disconnecting\u2026");
+  await flasher.forget(true);
+  busy(null);
+  clearBoardUi();
 }
 
 /** Finish with this board and get ready for the next one. */
 async function nextBoard() {
   busy("Finishing with this board\u2026");
-  if (monitor) monitor.stop();
   await flasher.forget(true);
   busy(null);
   const { boards } = boardTally();
@@ -449,7 +505,6 @@ function monitorAdvice(state) {
 }
 
 async function restoreGame() {
-  if (monitor) monitor.stop();
   show($("monitor-panel"), false);
   await doFlash("hound");
 }
@@ -555,18 +610,14 @@ async function init() {
   };
   refreshGroup();
 
-  $("connect").addEventListener("click", connect);
-  $("forget").addEventListener("click", async () => {
-    busy("Disconnecting\u2026");
-    if (monitor) monitor.stop();
-    await flasher.forget(true);
-    busy(null);
-    clearBoardUi();
-  });
-  $("flash-fox").addEventListener("click", () => doFlash("fox"));
-  $("flash-hound").addEventListener("click", () => doFlash("hound"));
-  $("monitor-start").addEventListener("click", startMonitor);
-  $("monitor-restore").addEventListener("click", restoreGame);
+  // Every route to the board goes through withBoard, and only through it:
+  // these listeners are the only places an operation starts.
+  $("connect").addEventListener("click", () => withBoard(connect));
+  $("forget").addEventListener("click", () => withBoard(forgetBoard));
+  $("flash-fox").addEventListener("click", () => withBoard(() => doFlash("fox")));
+  $("flash-hound").addEventListener("click", () => withBoard(() => doFlash("hound")));
+  $("monitor-start").addEventListener("click", () => withBoard(startMonitor));
+  $("monitor-restore").addEventListener("click", () => withBoard(restoreGame));
   $("monitor-stop").addEventListener("click", () => {
     if (monitor) monitor.stop();
     show($("monitor-panel"), false);
