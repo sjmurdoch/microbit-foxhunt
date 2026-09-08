@@ -25,7 +25,14 @@ Pages is static hosting. It runs no code of ours, and it exposes no access log �
 
 **Decision (2026-09-08, chosen by the project owner): self-hosted GoatCounter** on a server they already run. No third party sees the traffic, the data stays under their control, and it comes with a dashboard, which a bespoke endpoint would not.
 
-It lands on `wordpress-prod` (`secblog`), the Rocky 10 box that already serves `benthamsgaze.org` and the static `murdoch.is`, deployed by `site-wordpress.yml` in the sysadmin repo. **No new domain name is available**, which decides the shape: GoatCounter has no subdirectory support, so the dashboard cannot be moved out of the way of the static site at `/`. What saves it is that only one endpoint has to be public, and its path is already `/count` at GoatCounter's own root -- so Apache proxies that one path 1:1, with no rewriting, and the dashboard stays private on the loopback. The endpoint is therefore `https://murdoch.is/count`.
+It lands on `wordpress-prod` (`secblog`), the Rocky 10 box that already serves `benthamsgaze.org` and the static `murdoch.is`, deployed by `site-wordpress.yml` in the sysadmin repo. **No new domain name is available**, so it has to share a name with the static site.
+
+That is a solved problem, but only once the source is read rather than the blog posts. Two claims that are widely repeated and are wrong for v2.7.0 **[source: `cmd/goatcounter/serve.go` at v2.7.0, read 2026-09-08]**:
+
+* **`-tls none` is not a thing.** The flag's values are `http`, a `.pem` path, `acme[:cache]` and `rdr`, and **`http` — "don't serve any TLS" — is the default**, which is exactly what is wanted behind Apache.
+* **Subdirectories are supported.** `-base-path` exists and its help names this case: *"in some cases it's useful to run GoatCounter under a path ('example.com/stats'), in which case you'll need to set this to '/stats'"*.
+
+So GoatCounter runs on the loopback under `-base-path /stats`, and Apache reverse-proxies `/stats` on the existing `murdoch.is` vhost. Everything moves under that prefix, which means the beacon endpoint is `https://murdoch.is/stats/count` and the dashboard is a normal browser page at `https://murdoch.is/stats/` behind GoatCounter's own login — no new name, no certificate change, and no SSH tunnel to read the numbers. Sites are matched by `Host`, so Apache passes it through (`ProxyPreserveHost On`) and the site is created with `-vhost=murdoch.is`.
 
 ## 3. Privacy posture
 

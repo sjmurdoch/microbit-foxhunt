@@ -21,7 +21,7 @@ dev = [
 # command line beat $FOXHUNT_ANALYTICS_ENDPOINT / $FOXHUNT_ANALYTICS_HOSTS,
 # which beat this file. --no-analytics builds with no beacon whatever is set.
 [tool.foxhunt.analytics]
-endpoint = "https://murdoch.is/count"
+endpoint = "https://murdoch.is/stats/count"
 hosts = ["sjmurdoch.github.io"]
 
 [tool.pytest.ini_options]
