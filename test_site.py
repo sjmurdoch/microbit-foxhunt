@@ -1145,6 +1145,25 @@ def test_the_monitor_is_labelled_by_what_it_is_for():
     assert "Check the Treasure is working" in page
 
 
+def test_the_group_box_is_never_blank():
+    """Reported from the page: the radio group box was empty on load. It was
+    filled only by JavaScript, so it stayed blank for as long as the manifest
+    and the device sources took to arrive -- and blank forever when the script
+    did not run at all, which is what the stale-cache bug below caused. An empty
+    box on a control labelled "Radio group" reads as "you have not chosen yet".
+
+    Stamped through the existing substitution rather than typed in, so it cannot
+    drift from RADIO_GROUP."""
+    from build_site import apply, substitutions
+
+    raw = open(os.path.join("web", "index.html")).read()
+    assert 'value="__GROUP_DEFAULT__"' in raw, "the default is stamped in, never hard-coded"
+    page = apply(raw, substitutions(build_manifest()))
+    tag = re.search(r'<input id="group"[^>]*>', page, re.S)
+    assert tag, "the group input"
+    assert 'value="%d"' % RADIO_GROUP in tag.group(0), tag.group(0)
+
+
 def test_only_one_board_operation_runs_at_a_time():
     """The page drives a single USB connection, so overlapping two operations is
     not a slow page but a corrupted board -- a flash interleaved with another

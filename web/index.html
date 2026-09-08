@@ -153,7 +153,12 @@
   </p>
   <p class="row">
     <label for="group">Radio group</label>
-    <input id="group" type="number" min="1" max="255" step="1" inputmode="numeric">
+    <!-- The default is stamped in rather than left to JavaScript. The box is
+         otherwise blank for as long as the manifest and device sources take to
+         arrive, and blank forever if the script never runs at all -- and an
+         empty required-looking field reads as "you have not chosen yet". -->
+    <input id="group" type="number" min="1" max="255" step="1" inputmode="numeric"
+           value="__GROUP_DEFAULT__">
     <span id="group-note" class="note"></span>
   </p>
   <p id="group-warning" class="banner warn" hidden></p>
