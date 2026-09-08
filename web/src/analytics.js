@@ -181,7 +181,7 @@ export function downloaded(role) {
  * hunt/ready is the strongest single measure: a Treasure and at least one Hound
  * set up in the same session is a playable game prepared. It is still a proxy
  * -- it says a hunt was made ready, never that it was played, and section
- * "Reading impact" in ANALYTICS_PLAN.md is explicit about that.
+ * "Reading impact" in archive/ANALYTICS_PLAN.md is explicit about that.
  */
 const BOARD_BUCKETS = [[10, "10+"], [5, "5-9"], [2, "2-4"], [1, "1"]];
 const reached = new Set();

@@ -11,7 +11,7 @@ dev = [
     "pyserial>=3.5",
 ]
 
-# Usage counting for the published site. See ANALYTICS_PLAN.md for the design
+# Usage counting for the published site. See archive/ANALYTICS_PLAN.md for the design
 # and web/src/analytics.js for exactly what is and is not sent.
 #
 # Empty endpoint = no beacon at all, and that is what a fork or a local build

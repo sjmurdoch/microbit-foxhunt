@@ -1588,7 +1588,7 @@ def test_no_user_facing_page_is_titled_a_fox_hunt():
 # The JavaScript half is run in node against a stubbed DOM, because what matters
 # is not what the source says but which requests are actually made.
 #
-# The design and the reasoning are in ANALYTICS_PLAN.md.
+# The design and the reasoning are in archive/ANALYTICS_PLAN.md.
 
 ANALYTICS_JS = os.path.join(HERE, "web", "src", "analytics.js")
 

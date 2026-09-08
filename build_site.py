@@ -100,7 +100,7 @@ ROLE_LABELS = {
 #
 # Off unless an endpoint is configured, and the default is no endpoint, so a
 # fork and a local `make site` send nothing without anyone having to remember.
-# See ANALYTICS_PLAN.md for the design and web/src/analytics.js for what the
+# See archive/ANALYTICS_PLAN.md for the design and web/src/analytics.js for what the
 # client will and will not send.
 ANALYTICS_SECTION = ("tool", "foxhunt", "analytics")
 ANALYTICS_ENV_ENDPOINT = "FOXHUNT_ANALYTICS_ENDPOINT"
@@ -142,7 +142,7 @@ ANALYTICS_EVENTS = (
     "group/other",
     # Reach and impact. Each fires at most once per session -- see the comment
     # on session() in web/src/analytics.js, and "Reading impact" in
-    # ANALYTICS_PLAN.md for what these do and do not license anyone to claim.
+    # archive/ANALYTICS_PLAN.md for what these do and do not license anyone to claim.
     "session/boards/1",
     "session/boards/2-4",
     "session/boards/5-9",
