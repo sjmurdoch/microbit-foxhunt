@@ -111,10 +111,15 @@ ANALYTICS_ENV_PREFIX = "FOXHUNT_ANALYTICS_PREFIX"
 # one namespace. The counting lands in the personal site's own GoatCounter site
 # rather than a separate one, because the hunt is part of that site rather than
 # a thing of its own; so the namespace is what keeps it identifiable, and lets
-# one filter on the dashboard show the hunt and nothing else. Checked
-# 2026-09-08 that https://murdoch.is/radio-treasure-hunt is a 404, so it
-# collides with nothing the site already serves.
-ANALYTICS_PREFIX = "radio-treasure-hunt"
+# one filter on the dashboard show the hunt and nothing else.
+#
+# It sits under that site's real /projects/ section, which is where the hunt
+# belongs as one project among others: filtering on projects/ then reads as all
+# of them, and on projects/radio-treasure-hunt as this one. Checked 2026-09-08:
+# https://murdoch.is/projects/ is a real page (200) and
+# https://murdoch.is/projects/radio-treasure-hunt is a 404, so nothing already
+# served collides with what is reported here.
+ANALYTICS_PREFIX = "projects/radio-treasure-hunt"
 
 # Event names that do not depend on a role. The role-shaped ones are generated
 # from flash.ROLES below, so adding a role adds its events rather than needing

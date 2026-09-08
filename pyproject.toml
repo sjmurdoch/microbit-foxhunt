@@ -25,9 +25,10 @@ endpoint = "https://murdoch.is/stats/count"
 hosts = ["sjmurdoch.github.io"]
 # The counting lands in murdoch.is's own GoatCounter site, because the hunt is
 # part of that personal site rather than a thing of its own. Every path this
-# site reports goes under this namespace, so one dashboard filter separates the
-# hunt from the site's own traffic in both directions.
-prefix = "radio-treasure-hunt"
+# site reports goes under this namespace -- inside that site's real /projects/
+# section, the hunt being one project among others -- so one dashboard filter
+# separates the hunt from the site's own traffic in both directions.
+prefix = "projects/radio-treasure-hunt"
 
 [tool.pytest.ini_options]
 # Only collect real unit tests. The hardware helpers (integration_check.py,

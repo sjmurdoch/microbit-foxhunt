@@ -1635,7 +1635,7 @@ def run_analytics(body, tmp_path, config, hostname="sjmurdoch.github.io", naviga
 
 LIVE = {"endpoint": "https://stats.example.org/count",
         "hosts": ["sjmurdoch.github.io"],
-        "prefix": "radio-treasure-hunt",
+        "prefix": "projects/radio-treasure-hunt",
         "events": analytics_events()}
 
 
@@ -1777,11 +1777,11 @@ def test_session_milestones_fire_once_each(tmp_path):
     got = run_analytics("a.session(12, true); a.session(12, true); a.session(13, true);"
                         "console.log(JSON.stringify(sent.map(u => u.split('?')[1].split('&')[0])));",
                         tmp_path, LIVE)
-    assert got == ["p=radio-treasure-hunt%2Fsession%2Fboards%2F10%2B",
-                   "p=radio-treasure-hunt%2Fsession%2Fboards%2F5-9",
-                   "p=radio-treasure-hunt%2Fsession%2Fboards%2F2-4",
-                   "p=radio-treasure-hunt%2Fsession%2Fboards%2F1",
-                   "p=radio-treasure-hunt%2Fhunt%2Fready"]
+    assert got == ["p=projects%2Fradio-treasure-hunt%2Fsession%2Fboards%2F10%2B",
+                   "p=projects%2Fradio-treasure-hunt%2Fsession%2Fboards%2F5-9",
+                   "p=projects%2Fradio-treasure-hunt%2Fsession%2Fboards%2F2-4",
+                   "p=projects%2Fradio-treasure-hunt%2Fsession%2Fboards%2F1",
+                   "p=projects%2Fradio-treasure-hunt%2Fhunt%2Fready"]
 
 
 def test_a_session_with_no_treasure_is_not_a_playable_hunt(tmp_path):
@@ -1804,17 +1804,19 @@ def test_every_reported_path_is_under_one_namespace(tmp_path):
         "console.log(JSON.stringify(sent.map(u => decodeURIComponent("
         "  u.split('?')[1].split('&').find(kv => kv.startsWith('p=')).slice(2)))));",
         tmp_path, LIVE)
-    assert got == ["/radio-treasure-hunt/",
-                   "radio-treasure-hunt/hunt/ready",
-                   "radio-treasure-hunt/flash/fox/ok"]
+    assert got == ["/projects/radio-treasure-hunt/",
+                   "projects/radio-treasure-hunt/hunt/ready",
+                   "projects/radio-treasure-hunt/flash/fox/ok"]
 
 
 @pytest.mark.parametrize("pathname,expected", [
-    ("/radio-treasure-hunt/", "/radio-treasure-hunt/"),
-    ("/radio-treasure-hunt/index.html", "/radio-treasure-hunt/"),
-    ("/radio-treasure-hunt/worksheet.html", "/radio-treasure-hunt/worksheet"),
-    ("/", "/radio-treasure-hunt/"),
-    ("/somewhere/else/hunt-card.html", "/radio-treasure-hunt/hunt-card"),
+    # Served from /radio-treasure-hunt/ on Pages; reported under the namespace,
+    # which is a different thing and deliberately so.
+    ("/radio-treasure-hunt/", "/projects/radio-treasure-hunt/"),
+    ("/radio-treasure-hunt/index.html", "/projects/radio-treasure-hunt/"),
+    ("/radio-treasure-hunt/worksheet.html", "/projects/radio-treasure-hunt/worksheet"),
+    ("/", "/projects/radio-treasure-hunt/"),
+    ("/somewhere/else/hunt-card.html", "/projects/radio-treasure-hunt/hunt-card"),
 ])
 def test_the_page_identity_survives_the_site_moving(tmp_path, pathname, expected):
     """Reported from the last path segment rather than the raw pathname, so a
