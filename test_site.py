@@ -1164,6 +1164,30 @@ def test_the_group_box_is_never_blank():
     assert 'value="%d"' % RADIO_GROUP in tag.group(0), tag.group(0)
 
 
+def test_the_page_itself_is_fetched_network_first():
+    """The bundle is named by build stamp -- app.<short sha>.js -- so every
+    deploy removes the file that a cached page names, and the activate handler
+    deletes the cache that held it. Serving the page from cache therefore serves
+    one whose script 404s: no JavaScript at all, every control dead, and the
+    radio group box empty. That is the caching breaking the site it caches.
+
+    Reproduced in the browser on 2026-09-08 by putting a pre-deploy index.html
+    into the live cache: one console 404, empty group box, connect disabled.
+
+    Everything else stays cache first -- that is what makes the site usable in a
+    field with no network -- and the page falls back to the cache when the fetch
+    fails, so offline is unaffected."""
+    sw = open(os.path.join("web", "src", "sw.js")).read()
+
+    nav = sw[sw.index('request.mode === "navigate"'):sw.index("Everything else is cache first")]
+    assert nav.index("fetch(request)") < nav.index("caches.match(request)"), (
+        "the network must be tried before the cache for the page itself")
+
+    rest = sw[sw.index("Everything else is cache first"):]
+    assert rest.index("caches.match(request)") < rest.index("fetch(request)"), (
+        "assets stay cache first, or the site stops working offline")
+
+
 def test_only_one_board_operation_runs_at_a_time():
     """The page drives a single USB connection, so overlapping two operations is
     not a slow page but a corrupted board -- a flash interleaved with another
